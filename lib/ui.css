@@ -66,6 +66,18 @@ input[type=checkbox] { width: auto; }
 label { display: block; }
 label > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 
+/* PIN fields with a show/hide eye button */
+label > span.pin-field, .pin-field { position: relative; display: block; font-size: inherit; color: inherit; margin: 0; }
+.pin-field input { padding-right: 40px; }
+.pin-eye {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 32px; height: 28px; padding: 0;
+  border: 0; border-radius: 6px; background: none; color: var(--muted); line-height: 0;
+}
+.pin-eye:hover { color: var(--text); background: var(--accent-soft); }
+.pin-eye:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.pin-eye[aria-pressed="true"] { color: var(--accent); }
+
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1; }

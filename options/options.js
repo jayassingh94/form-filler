@@ -1,6 +1,6 @@
 import { SCHEMA, newProfile, getPath, setPath } from '../lib/schema.js';
 import { loadVault, saveVault, lock, changePin, exportBackup, importBackup, deleteAll, isSetUp, DEFAULT_MODEL } from '../lib/vault.js';
-import { showLock, onLocked } from '../lib/lockui.js';
+import { showLock, onLocked, addPinReveal, hideAllPins } from '../lib/lockui.js';
 import { addDocument, removeDocument, docBlob, formatSize, guessTags, fileExt } from '../lib/docs.js';
 import { testGemini } from '../lib/ai.js';
 import { demoProfile } from '../lib/demo.js';
@@ -36,8 +36,9 @@ async function boot() {
   if (tab) selectTab(tab);
 }
 
-onLocked(() => boot());
+onLocked(() => { hideAllPins(); boot(); });
 $('#lock-now').onclick = () => lock();
+['#pin-old', '#pin-new', '#pin-new2'].forEach((s) => addPinReveal($(s)));
 
 async function persist() {
   try {
@@ -332,6 +333,7 @@ $('#pin-change').onclick = async () => {
   try {
     await changePin(o, n);
     ['#pin-old', '#pin-new', '#pin-new2'].forEach((s) => ($(s).value = ''));
+    hideAllPins();
     msg($('#pin-msg'), '✓ PIN changed. Old backups still need the old PIN.', 'ok');
   } catch (e) {
     msg($('#pin-msg'), e.message, 'err');
