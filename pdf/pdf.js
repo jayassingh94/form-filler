@@ -6,7 +6,7 @@ import '../content/fillcore.js';
 import { loadVault, lock, isUnlocked } from '../lib/vault.js';
 import { showLock, onLocked } from '../lib/lockui.js';
 import { keyCatalog, resolveValue } from '../lib/schema.js';
-import { mapFieldsWithGemini, detectFlatPage } from '../lib/ai.js';
+import { mapFieldsWithGemini, detectFlatPage, lastModelUsed } from '../lib/ai.js';
 import { addDocument } from '../lib/docs.js';
 import { toB64 } from '../lib/crypto.js';
 import * as G from '../lib/pdfgeom.js';
@@ -309,7 +309,7 @@ async function mapFields(descs) {
     try {
       return await mapFieldsWithGemini(apiKey, model, descs, keyCatalog(profile()));
     } catch (err) {
-      progress(`AI matching failed (${err.message}); using offline matching.`, 'warn');
+      aiWarning = `AI matching failed (${err.message}), so offline matching was used.`;
     }
   }
   const m = new Map();
@@ -422,12 +422,19 @@ function summary(skipped) {
   return `${filled} filled · ${review} to check${skipped ? ` · 🛡️ ${skipped} sensitive field(s) skipped` : ''}.`;
 }
 
+let aiWarning = null; // shown with the step's result so it isn't overwritten
+
 async function runStep(fn) {
+  aiWarning = null;
   const btns = ['#run-acro', '#run-ai', '#run-offline'].map((s) => $(s));
   btns.forEach((b) => (b.dataset.was = b.disabled, b.disabled = true));
   progress('Working…');
   try {
-    progress(await fn(), 'ok');
+    let text = await fn();
+    const m = vault.settings.model;
+    if (aiWarning) { progress(`${text} ${aiWarning}`, 'warn'); return; }
+    if (vault.settings.apiKey && lastModelUsed && lastModelUsed !== m && fn !== detectOffline) text += ` (${m} was busy, so ${lastModelUsed} answered.)`;
+    progress(text, 'ok');
   } catch (err) {
     progress(err.message === 'LOCKED' ? 'Locked. Unlock and try again.' : err.message, 'err');
   } finally {

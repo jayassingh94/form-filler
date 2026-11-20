@@ -2,7 +2,7 @@
 import './content/fillcore.js';
 import { loadVault, checkAutoLock } from './lib/vault.js';
 import { keyCatalog, resolveValue } from './lib/schema.js';
-import { mapFieldsWithGemini } from './lib/ai.js';
+import { mapFieldsWithGemini, lastModelUsed } from './lib/ai.js';
 import { getDocBytes } from './lib/vault.js';
 import { addDocument } from './lib/docs.js';
 import { toB64, fromB64 } from './lib/crypto.js';
@@ -133,5 +133,6 @@ async function handleFill({ tabId, profileId, overwrite }) {
     });
     if (res?.result) for (const k of Object.keys(totals)) totals[k] += res.result[k] || 0;
   }
-  return { ok: true, ...totals, sensitive, fileInputs, mode, aiError };
+  const fallbackModel = mode === 'ai' && lastModelUsed && lastModelUsed !== model ? lastModelUsed : null;
+  return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel };
 }

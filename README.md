@@ -26,7 +26,7 @@ A Chrome extension (Manifest V3) that fills web forms from encrypted profiles st
 4. Click **Load unpacked** and choose the `form-filler` folder (the one that contains `manifest.json`).
 5. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to **Form Filler**.
 6. The setup page opens automatically. **Create a PIN** of at least 6 characters (letters make it stronger). If you forget it, the data cannot be recovered.
-7. Optional, for smarter matching: go to **Settings**, paste a Gemini API key from https://aistudio.google.com/apikey, click **Test connection**, then **Save**. The model defaults to `gemini-3.5-flash-lite`. Without a key, a built-in offline keyword matcher is used and nothing is sent anywhere.
+7. Optional, for smarter matching: go to **Settings**, paste a Gemini API key from https://aistudio.google.com/apikey, click **Test connection**, then **Save**. The model defaults to `gemini-3.5-flash-lite`. Without a key, a built-in offline keyword matcher is used and nothing is sent anywhere. If Gemini answers **503 (high demand)**, Form Filler retries up to 3 times (waiting about 1, 2 and 4 seconds), then tries `gemini-3.6-flash` once, and tells you when that fallback answered. Other errors (wrong key, quota) are shown straight away.
 
 After pulling new code, click the ↻ reload icon on the Form Filler card in `chrome://extensions`.
 

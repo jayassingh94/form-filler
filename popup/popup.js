@@ -102,6 +102,7 @@ function renderResult(r) {
   if (r.fileInputs) lines.push(`<div class="line small muted">📎 ${r.fileInputs} upload field(s): use "Pick from locker" on the page</div>`);
   if (r.aiError) lines.push(`<div class="notice small" style="margin-top:6px">AI matching failed (${esc(r.aiError)}). Used offline matching instead.</div>`);
   else if (r.mode === 'offline') lines.push('<div class="small muted">Matched with offline keywords.</div>');
+  if (r.fallbackModel) lines.push(`<div class="small muted">Your Gemini model was busy, so ${esc(r.fallbackModel)} answered instead.</div>`);
   lines.push('<div class="small muted" style="margin-top:6px">Nothing was submitted. Please review the form before submitting.</div>');
   showResult(`<div class="card" style="padding:10px">${lines.join('')}</div>`);
 }

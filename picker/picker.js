@@ -4,7 +4,7 @@ import { showLock, onLocked } from '../lib/lockui.js';
 import { formatSize, fileExt } from '../lib/docs.js';
 import { toB64, fromB64 } from '../lib/crypto.js';
 import { openImageEditor } from '../lib/imgedit.js';
-import { extractUploadRules } from '../lib/ai.js';
+import { extractUploadRules, lastModelUsed } from '../lib/ai.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -149,7 +149,13 @@ async function editImage(blob, name, tags) {
       if (!r?.ok) throw new Error(r?.error || 'Could not read the page text.');
       return r;
     },
-    run: (prev) => extractUploadRules(vault.settings.apiKey, vault.settings.model, prev)
+    run: async (prev) => {
+      const r = await extractUploadRules(vault.settings.apiKey, vault.settings.model, prev);
+      if (lastModelUsed && lastModelUsed !== vault.settings.model) {
+        r.notes = `${r.notes ? r.notes.replace(/[.\s]+$/, '') + '. ' : ''}(${vault.settings.model} was busy, so ${lastModelUsed} answered)`;
+      }
+      return r;
+    }
   } : null;
   try {
     await openImageEditor(box, {
