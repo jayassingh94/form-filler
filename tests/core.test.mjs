@@ -58,10 +58,17 @@ test('option matching', () => {
 });
 
 test('upload requirement parsing', () => {
-  assert.deepEqual(C.parseUploadRequirements('Photo (JPG, 20 KB to 50 KB, 200x230 px)'), { minKB: 20, maxKB: 50, width: 200, height: 230 });
-  assert.deepEqual(C.parseUploadRequirements('Signature max 20kb, 140 x 60 pixels'), { maxKB: 20, width: 140, height: 60 });
-  assert.deepEqual(C.parseUploadRequirements('PDF less than 1 MB'), { maxKB: 1024 });
-  assert.deepEqual(C.parseUploadRequirements('10-100 KB'), { minKB: 10, maxKB: 100 });
+  const P = C.parseUploadRequirements;
+  assert.deepEqual(P('Photo (JPG, 20 KB to 50 KB, 200x230 px)', 'Photo'), { minKB: 20, maxKB: 50, width: 200, height: 230, format: 'jpg', kind: 'photo' });
+  assert.deepEqual(P('Signature max 20kb, 140 x 60 pixels', 'Signature'), { maxKB: 20, width: 140, height: 60, kind: 'signature' });
+  assert.deepEqual(P('PDF less than 1 MB', 'Class 10 Marksheet'), { maxKB: 1024, format: 'pdf', kind: 'document' });
+  assert.deepEqual(P('10-100 KB'), { minKB: 10, maxKB: 100 });
+  assert.deepEqual(P('Photograph 350x350 to 1000x1000 pixels, 20 KB - 300 KB, JPG', 'Photograph'),
+    { minKB: 20, maxKB: 300, minWidth: 350, maxWidth: 1000, minHeight: 350, maxHeight: 1000, format: 'jpg', kind: 'photo' });
+  const cm = P('Signature 10-20 KB, 3.5 cm x 1.5 cm', 'Signature');
+  assert.equal(cm.width, 350); assert.equal(cm.height, 150); assert.ok(cm.fromCm);
+  assert.equal(P('35 mm x 45 mm photo').width, 350);
+  assert.equal(P('x', 'Left thumb impression').kind, 'thumb');
 });
 
 test('offline keyword mapping', () => {

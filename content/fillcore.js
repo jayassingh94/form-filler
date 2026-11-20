@@ -175,7 +175,13 @@
   }
 
   // ---------------- upload requirements ----------------
-  function parseUploadRequirements(text) {
+  /**
+   * Read upload rules from nearby page text (offline, regex based).
+   * Returns any of: minKB, maxKB, width, height, minWidth, maxWidth, minHeight, maxHeight,
+   * aspect (w/h), format ('jpg'|'png'|'pdf'), kind ('photo'|'signature'|'thumb'|'document').
+   * `label` (the field's own label) decides the kind, because nearby text often mentions several uploads.
+   */
+  function parseUploadRequirements(text, label) {
     const t = String(text || '').toLowerCase().replace(/,/g, '');
     const req = {};
     const sizes = [];
@@ -193,13 +199,35 @@
     } else if (sizes.length === 1) {
       req.maxKB = sizes[0];
     }
-    const dim = t.match(/(\d{2,4})\s*(?:px|pixels?)?\s*[x×*]\s*(\d{2,4})\s*(?:px|pixels?)?/);
-    if (dim) { req.width = Number(dim[1]); req.height = Number(dim[2]); }
-    else {
+    const PX = '(\\d{2,4})\\s*(?:px|pixels?)?\\s*[x×*]\\s*(\\d{2,4})\\s*(?:px|pixels?)?';
+    const pxRange = t.match(new RegExp(`${PX}\\s*(?:-|to|–)\\s*${PX}`));
+    const dim = t.match(new RegExp(PX));
+    const cm = t.match(/(\d+(?:\.\d+)?)\s*(cm|mm)\s*(?:\(?\s*(?:w|width)\s*\)?)?\s*[x×*]\s*(\d+(?:\.\d+)?)\s*(cm|mm)/);
+    if (pxRange) {
+      const [w1, h1, w2, h2] = [pxRange[1], pxRange[2], pxRange[3], pxRange[4]].map(Number);
+      Object.assign(req, { minWidth: Math.min(w1, w2), maxWidth: Math.max(w1, w2), minHeight: Math.min(h1, h2), maxHeight: Math.max(h1, h2) });
+    } else if (dim) {
+      req.width = Number(dim[1]); req.height = Number(dim[2]);
+    } else if (cm) {
+      // Physical size only: keep the shape; use 100 px per cm as the pixel target (≈254 dpi).
+      const f = (v, u) => parseFloat(v) * (u === 'mm' ? 0.1 : 1);
+      const wcm = f(cm[1], cm[2]), hcm = f(cm[3], cm[4]);
+      req.aspect = wcm / hcm;
+      req.width = Math.round(wcm * 100); req.height = Math.round(hcm * 100);
+      req.fromCm = true;
+    } else {
       const w = t.match(/width\D{0,12}(\d{2,4})/), h = t.match(/height\D{0,12}(\d{2,4})/);
       if (w) req.width = Number(w[1]);
       if (h) req.height = Number(h[1]);
     }
+    if (/\bjpe?g\b|\.jpe?g|image\/jpeg/.test(t)) req.format = 'jpg';
+    else if (/\bpng\b|image\/png/.test(t)) req.format = 'png';
+    else if (/\bpdf\b/.test(t)) req.format = 'pdf';
+    const k = String(label || text || '').toLowerCase();
+    if (/signature|\bsign\b/.test(k)) req.kind = 'signature';
+    else if (/thumb/.test(k)) req.kind = 'thumb';
+    else if (/photo|photograph|picture|selfie/.test(k)) req.kind = 'photo';
+    else if (/certificate|marksheet|mark sheet|document|proof|pdf/.test(k)) req.kind = 'document';
     return req;
   }
 

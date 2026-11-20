@@ -409,6 +409,8 @@
     const bits = [labelFor(input), input.accept];
     let n = input.parentElement;
     for (let i = 0; n && i < 3; i++, n = n.parentElement) {
+      // stop before a container that also holds another upload (its rules belong to that field)
+      if ([...n.querySelectorAll('input[type=file]')].some((o) => o !== input)) break;
       const t = clean(n.innerText || '');
       if (t.length < 400) bits.push(t); else break;
     }
@@ -441,9 +443,53 @@
     return inputs.length;
   }
 
+  // ---------------- upload rule text (for AI) ----------------
+  const RULE_WORDS = /\b(kb|mb|kilobytes?|pixels?|px|dpi|jpe?g|png|pdf|dimensions?|width|height|cm|mm|resolution|size)\b/i;
+  /** Redact anything that looks personal before text leaves the page. */
+  function redact(t) {
+    return t
+      .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]')
+      .replace(/(\+?\d[\d\s-]{8,}\d)/g, (m) => (m.replace(/\D/g, '').length >= 8 ? '[number]' : m))
+      .replace(/\b\d{6,}\b/g, '[number]');
+  }
+  /**
+   * Short pieces of the page's visible text that state upload rules: nearest to the field first,
+   * then elsewhere on the page. Input values are never included (innerText doesn't contain them).
+   */
+  function ruleSnippets(input) {
+    const out = [];
+    const seen = new Set();
+    let total = 0;
+    const add = (raw) => {
+      const t = redact(clean(raw)).slice(0, 300);
+      if (t.length < 6 || !RULE_WORDS.test(t) || !/\d/.test(t) || seen.has(t)) return;
+      for (const s of seen) if (s.includes(t) || t.includes(s)) return;
+      if (total + t.length > 4000 || out.length >= 30) return;
+      seen.add(t); out.push(t); total += t.length;
+    };
+    // 1) the field's own surroundings
+    add(labelFor(input));
+    let n = input.parentElement;
+    for (let i = 0; n && i < 4; i++, n = n.parentElement) {
+      if ([...n.querySelectorAll('input[type=file]')].some((o) => o !== input)) break;
+      const t = clean(n.innerText || '');
+      if (t.length <= 400) add(t);
+    }
+    // 2) instruction blocks anywhere on the page
+    const blocks = document.querySelectorAll('p, li, td, th, label, dd, dt, span, small, b, strong, font, h1, h2, h3, h4, h5, h6, div');
+    for (const el of blocks) {
+      if (el.closest('[data-ff-ui], script, style, noscript, input, textarea, select')) continue;
+      if (el.tagName === 'DIV' && el.querySelector('div, p, table, ul, ol')) continue; // leaf-ish divs only
+      const t = el.innerText || '';
+      if (t.length > 300 || !visible(el)) continue;
+      add(t);
+    }
+    return out;
+  }
+
   function openPicker(token, input) {
     closePicker();
-    const req = C.parseUploadRequirements(uploadContextText(input));
+    const req = C.parseUploadRequirements(uploadContextText(input), labelFor(input));
     const params = new URLSearchParams({
       token,
       accept: input.accept || '',
@@ -456,7 +502,7 @@
     wrap.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center';
     const frame = document.createElement('iframe');
     frame.src = chrome.runtime.getURL('picker/picker.html') + '?' + params.toString();
-    frame.style.cssText = 'width:min(720px,94vw);height:min(640px,90vh);border:0;border-radius:14px;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.3)';
+    frame.style.cssText = 'width:min(980px,96vw);height:min(820px,94vh);border:0;border-radius:14px;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.3)';
     wrap.appendChild(frame);
     wrap.addEventListener('click', (e) => { if (e.target === wrap) closePicker(); });
     document.documentElement.appendChild(wrap);
@@ -494,6 +540,11 @@
       } catch (e) {
         sendResponse({ ok: false, error: String(e.message || e) });
       }
+      return;
+    }
+    if (msg?.type === 'ff-rule-text' && fileTokens.has(msg.token)) {
+      const input = fileTokens.get(msg.token);
+      sendResponse({ ok: true, label: labelFor(input).slice(0, 120), accept: input.accept || '', snippets: ruleSnippets(input) });
       return;
     }
     if (msg?.type === 'ff-close-picker' && fileTokens.has(msg.token)) {

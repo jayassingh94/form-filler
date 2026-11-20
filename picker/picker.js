@@ -1,8 +1,10 @@
 // Runs inside an extension iframe on the web page. The page cannot read this frame (different origin).
 import { loadVault } from '../lib/vault.js';
 import { showLock, onLocked } from '../lib/lockui.js';
-import { formatSize, fileExt, resizeImage } from '../lib/docs.js';
+import { formatSize, fileExt } from '../lib/docs.js';
 import { toB64, fromB64 } from '../lib/crypto.js';
+import { openImageEditor } from '../lib/imgedit.js';
+import { extractUploadRules } from '../lib/ai.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -37,7 +39,8 @@ function accepts(meta) {
 function reqText() {
   const bits = [];
   if (req.minKB || req.maxKB) bits.push(`size ${req.minKB ? req.minKB + '–' : 'up to '}${req.maxKB ? req.maxKB + ' KB' : ''}`);
-  if (req.width || req.height) bits.push(`${req.width || '?'}×${req.height || '?'} px`);
+  if (req.width || req.height) bits.push(`${req.width || '?'}×${req.height || '?'} px${req.fromCm ? ' (from cm)' : ''}`);
+  if (req.minWidth || req.maxWidth) bits.push(`${req.minWidth}–${req.maxWidth} × ${req.minHeight}–${req.maxHeight} px`);
   if (accept) bits.push(`types: ${accept}`);
   return bits.length ? `Form asks for: <b>${esc(bits.join(' · '))}</b> <span class="muted">(read from the page text; please verify)</span>` : '';
 }
@@ -47,7 +50,8 @@ function problems(d) {
   const kb = d.size / 1024;
   if (req.maxKB && kb > req.maxKB) p.push(`larger than ${req.maxKB} KB`);
   if (req.minKB && kb < req.minKB) p.push(`smaller than ${req.minKB} KB`);
-  if (d.width && req.width && req.height && (d.width !== req.width || d.height !== req.height)) p.push(`not ${req.width}×${req.height}px`);
+  if (d.width && req.width && req.height && !req.fromCm && (d.width !== req.width || d.height !== req.height)) p.push(`not ${req.width}×${req.height}px`);
+  if (d.width && req.minWidth && (d.width < req.minWidth || d.width > req.maxWidth || d.height < req.minHeight || d.height > req.maxHeight)) p.push('outside the allowed pixel range');
   if (!accepts(d)) p.push('file type not accepted');
   return p;
 }
@@ -87,7 +91,7 @@ async function renderList() {
       </div>
       <div class="row" style="flex-direction:column;align-items:stretch">
         <button class="primary" data-act="attach">Attach</button>
-        ${isImg ? '<button data-act="resize">Resize…</button>' : ''}
+        ${isImg ? '<button data-act="resize">Crop &amp; resize…</button>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -110,9 +114,16 @@ $('#list').addEventListener('click', async (e) => {
     if (p.length && !confirm(`This file may not meet the form's requirements (${p.join(', ')}). Attach anyway?`)) return;
     await deliver(await docBlob(d), d.name);
   } else if (act === 'resize') {
-    showResize(d);
+    editImage(await docBlob(d), d.name, d.tags);
   }
 });
+
+// Prepare a new photo/signature straight from this computer (saved to the locker only if you tick the box).
+$('#from-file').onchange = async (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (f) editImage(f, f.name, []);
+};
 
 async function deliver(blob, name) {
   const msg = $('#msg');
@@ -126,60 +137,39 @@ async function deliver(blob, name) {
   }
 }
 
-function showResize(d) {
+async function editImage(blob, name, tags) {
   const box = $('#resize');
+  $('#browse').classList.add('hidden');
   box.classList.remove('hidden');
-  box.innerHTML = `
-    <h3>Resize "${esc(d.name)}"</h3>
-    <p class="small muted">Currently ${formatSize(d.size)} · ${d.width}×${d.height} px. Output is JPEG. Leave width/height empty to keep the shape and only compress.</p>
-    <div class="grid">
-      <label><span>Width (px)</span><input type="number" id="rw" min="16" value="${req.width || ''}"></label>
-      <label><span>Height (px)</span><input type="number" id="rh" min="16" value="${req.height || ''}"></label>
-      <label><span>Min KB</span><input type="number" id="rmin" min="0" value="${req.minKB || ''}"></label>
-      <label><span>Max KB</span><input type="number" id="rmax" min="1" value="${req.maxKB || ''}"></label>
-      <label><span>Fit</span><select id="rfit"><option value="cover">Crop to fill</option><option value="contain">Fit (white borders)</option><option value="stretch">Stretch</option></select></label>
-    </div>
-    <div class="row" style="margin-top:10px"><button id="rgo" class="primary">Preview</button><span id="rinfo" class="small"></span></div>
-    <img id="preview" class="hidden" alt="Resized preview">
-    <div class="row hidden" id="rdone" style="margin-top:8px">
-      <button class="primary" id="rattach">Attach resized</button>
-      <label class="row small"><input type="checkbox" id="rsave"> Also save this copy to my locker</label>
-    </div>`;
-  box.scrollIntoView({ behavior: 'smooth' });
-  let result = null;
-  const num = (id) => Number($(id).value) || undefined;
-  $('#rgo').onclick = async () => {
-    $('#rinfo').className = 'small muted';
-    $('#rinfo').textContent = 'Working…';
-    try {
-      result = await resizeImage(await docBlob(d), {
-        width: num('#rw'), height: num('#rh'), minKB: num('#rmin'), maxKB: num('#rmax'), fit: $('#rfit').value
-      });
-      const url = URL.createObjectURL(result.blob);
-      urls.push(url);
-      $('#preview').src = url;
-      $('#preview').classList.remove('hidden');
-      $('#rdone').classList.remove('hidden');
-      const notes = [];
-      if (result.overMax) notes.push(`still above ${num('#rmax')} KB; try smaller dimensions`);
-      if (result.underMin) notes.push(`below the ${num('#rmin')} KB minimum; the image has too little detail at this size`);
-      $('#rinfo').className = notes.length ? 'small warn' : 'small';
-      $('#rinfo').textContent = `${formatSize(result.blob.size)} · ${result.width}×${result.height} px${notes.length ? ' · ⚠ ' + notes.join('; ') : ' ✓'}`;
-    } catch (e) {
-      $('#rinfo').className = 'small err';
-      $('#rinfo').textContent = e.message;
-    }
-  };
-  $('#rattach').onclick = async () => {
-    if (!result) return;
-    const name = d.name.replace(/\.[^.]+$/, '') + `_${result.width}x${result.height}.jpg`;
-    if ($('#rsave').checked) {
-      const b64 = toB64(new Uint8Array(await result.blob.arrayBuffer()));
-      const r = await chrome.runtime.sendMessage({ type: 'ff-doc-add', name, tags: [...d.tags, 'resized'], mime: 'image/jpeg', b64 });
-      if (r?.ok) vault = await loadVault();
-    }
-    await deliver(result.blob, name);
-  };
+  const back = () => { box.classList.add('hidden'); box.innerHTML = ''; $('#browse').classList.remove('hidden'); };
+  const ai = vault.settings.apiKey ? {
+    // Text snippets come from the content script on the page (filtered and redacted there).
+    preview: async () => {
+      const r = await chrome.runtime.sendMessage({ type: 'ff-rule-text', token });
+      if (!r?.ok) throw new Error(r?.error || 'Could not read the page text.');
+      return r;
+    },
+    run: (prev) => extractUploadRules(vault.settings.apiKey, vault.settings.model, prev)
+  } : null;
+  try {
+    await openImageEditor(box, {
+      blob, name, rule: req, kind: req.kind, ai,
+      primaryLabel: 'Attach to the form', allowSaveCopy: true,
+      onCancel: back,
+      onDone: async (out, info, { saveCopy }) => {
+        if (saveCopy) {
+          const b64 = toB64(new Uint8Array(await out.arrayBuffer()));
+          const r = await chrome.runtime.sendMessage({ type: 'ff-doc-add', name: info.name, tags: [...new Set([...tags, info.kind, 'resized'])], mime: out.type, b64 });
+          if (r?.ok) vault = await loadVault();
+        }
+        await deliver(out, info.name);
+      }
+    });
+  } catch (err) {
+    back();
+    $('#msg').className = 'small err';
+    $('#msg').textContent = 'Could not open this image: ' + err.message;
+  }
 }
 
 boot();

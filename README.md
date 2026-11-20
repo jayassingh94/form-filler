@@ -5,6 +5,13 @@ A Chrome extension (Manifest V3) that fills web forms from encrypted profiles st
 - **My Profile**: personal, family, permanent and current address, contact, education (Class 10, Class 12, diploma, graduation, post-graduation, PhD, other), category, work experience and custom fields. You can keep several profiles (you, your spouse, and so on).
 - **Fill this form**: reads field labels, placeholders, names and dropdown/radio options. Gemini matches them to your profile *keys*, and your values are then filled in **locally**. Handles text boxes, dropdowns, radio buttons, checkboxes, date formats (DD/MM/YYYY, MM-DD-YYYY, DD-Mon-YYYY, native date pickers, separate day/month/year boxes) and dropdowns that load after another one changes. Fields it is sure about turn **green**; fields that are unsure or empty turn **yellow**.
 - **Document Locker**: stores your photo, signature, marksheets and certificates encrypted, with names and tags. A **📎 Pick from locker** button appears next to every upload field. The picker shows file size and dimensions, reads the form's KB and pixel limits, and can resize or compress images to fit.
+- **Photo & signature resizer**: in **📎 Pick from locker** (or Document Locker → *Crop & resize…*):
+  - **Size rules:** read from the page text next to the field, by AI from the page's instructions (text only, never the image), from an exam preset (IBPS, SSC, UPSC, RRB, NEET), or entered by hand.
+  - **Crop:** a movable box whose shape is locked to the target, plus rotate and "trim to signature".
+  - **Output:** resized to the exact pixels and compressed to land inside the KB range. Very small files are padded with empty metadata if needed.
+  - **Signatures:** the background is cleaned to pure white and the ink darkened.
+  - **Check, then attach:** the final size and dimensions are shown and checked before attaching.
+  - **Presets:** these are typical recent values. Always check the official notice.
 - **Fill a PDF**: open a PDF application form in the extension.
   - **Fillable PDF:** if it has real form fields, they are filled directly and stay editable.
   - **Flat or scanned PDF:** Gemini looks at the page images and finds each label with its blank line, character boxes or tick boxes (Sex, Category…). Your values are then written onto the PDF **locally**.
@@ -42,6 +49,15 @@ After pulling new code, click the ↻ reload icon on the Form Filler card in `ch
    - The yellow "form was submitted" banner **never** appears.
 6. Next to **Recent Photograph**, click **📎 Pick from locker**. The picker shows "20–50 KB · 200×230 px" and warns that your photo doesn't fit. Click **Resize…**, then **Preview**, then **Attach resized**, and the field shows `…_200x230.jpg`.
 7. Click **🔒 Lock** in the popup and try filling again: it asks for your PIN. Leaving it idle for 5 minutes also locks it.
+
+## Try the photo & signature resizer
+
+1. On `test/sample-form.html`, click **Fill this form**, then **📎 Pick from locker** next to *Recent Photograph*.
+2. Click **Crop & resize…** on a photo (or **From this computer…**). The rules *200 × 230 px, 20–50 KB* are read from the page.
+   Drag the box to choose the crop, check the result on the right, and click **Attach to the form**.
+3. Next to *Signature (see upload instructions)*, open a signature image. With a Gemini key, click **✨ Read rules from this page with AI**,
+   check the list of text snippets that will be sent, and click **Send & read rules** (or pick a preset). Click **Trim to signature**, adjust the
+   *Paper threshold* if needed, and attach.
 
 ## Try "Fill a PDF"
 
@@ -99,6 +115,8 @@ popup ──"Fill"──► background worker ──inject──► page (conten
 | `privacy.html` | Privacy policy |
 | `pdf/` | Fill a PDF page: field detection, preview editor, writing the PDF |
 | `lib/pdfgeom.js` | Box maths, text layout (letter boxes), tick choice, offline blank finder |
+| `lib/imgedit.js`, `lib/imgproc.js` | Photo/signature editor: crop UI, exact resize, KB targeting, JPEG padding, signature clean-up |
+| `lib/presets.js` | Exam presets (IBPS, SSC, UPSC, RRB, NEET), with notes and the date they were compiled |
 | `lib/pdftext.js` | Writes Latin (Helvetica) + Devanagari (shaped with fontkit, drawn as outlines) text |
 | `vendor/` | pdf-lib (MIT), pdf.js (Apache-2.0), @pdf-lib/fontkit (MIT), regenerator-runtime (MIT), Noto Sans Devanagari (SIL OFL), bundled because extensions can't load remote code. See `vendor/README.txt` |
 | `test/sample-form.html` | Sample form for manual testing |

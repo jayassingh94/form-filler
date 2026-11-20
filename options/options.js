@@ -4,6 +4,7 @@ import { showLock, onLocked } from '../lib/lockui.js';
 import { addDocument, removeDocument, docBlob, formatSize, guessTags, fileExt } from '../lib/docs.js';
 import { testGemini } from '../lib/ai.js';
 import { demoProfile } from '../lib/demo.js';
+import { openImageEditor } from '../lib/imgedit.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -212,6 +213,7 @@ async function renderDocs() {
       <div class="meta">${formatSize(d.size)}${d.width ? ` · ${d.width}×${d.height} px` : ''} · ${esc(d.type)}</div>
       <div>${d.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="actions">
+        ${/^image\//.test(d.type) ? '<button data-act="crop">Crop &amp; resize…</button>' : ''}
         <button data-act="edit">Rename / tags</button>
         <button data-act="download">Download</button>
         <button data-act="delete" class="danger">Delete</button>
@@ -269,6 +271,26 @@ $('#doc-grid').addEventListener('click', async (e) => {
     if (tags !== null) d.tags = splitTags(tags);
     await persist();
     renderDocs();
+  } else if (act === 'crop') {
+    const dlg = $('#edit-dialog');
+    const host = $('#edit-host');
+    dlg.showModal();
+    const close = () => { dlg.close(); host.innerHTML = ''; };
+    try {
+      await openImageEditor(host, {
+        blob: await docBlob(d), name: d.name, rule: {}, primaryLabel: 'Save to locker',
+        onCancel: close,
+        onDone: async (out, info) => {
+          await addDocument(out, { name: info.name, tags: [...new Set([...d.tags, info.kind, 'resized'])] });
+          vault = await loadVault();
+          close();
+          renderDocs();
+        }
+      });
+    } catch (err) {
+      close();
+      alert('Could not open this image: ' + err.message);
+    }
   } else if (act === 'download') {
     const url = URL.createObjectURL(await docBlob(d));
     const a = Object.assign(document.createElement('a'), { href: url, download: d.name });

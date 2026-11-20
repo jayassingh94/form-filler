@@ -41,6 +41,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then((meta) => sendResponse({ ok: true, meta }), (e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }
+  if (msg?.type === 'ff-rule-text' && page.startsWith('picker/') && sender.tab) {
+    chrome.tabs.sendMessage(sender.tab.id, { type: 'ff-rule-text', token: msg.token }).then(
+      (r) => sendResponse(r || { ok: false, error: 'The upload field is no longer on the page.' }),
+      (e) => sendResponse({ ok: false, error: e.message })
+    );
+    return true;
+  }
   if ((msg?.type === 'ff-deliver' || msg?.type === 'ff-close') && page.startsWith('picker/') && sender.tab) {
     const out = msg.type === 'ff-deliver'
       ? { type: 'ff-attach', token: msg.token, name: msg.name, mime: msg.mime, b64: msg.b64 }
