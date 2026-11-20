@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Form Filler Privacy Policy</title>
+  <link rel="stylesheet" href="lib/ui.css">
+  <style>
+    main { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+    h1 { font-size: 26px; }
+    h2 { margin-top: 28px; }
+    li { margin-bottom: 6px; }
+    .summary { margin: 16px 0 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 8px 6px; vertical-align: top; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Form Filler Privacy Policy</h1>
+  <p class="muted">Last updated: 20 November 2026</p>
+
+  <div class="card summary">
+    <b>In short:</b> your details and documents stay on your computer, encrypted with your PIN. The only thing that
+    ever leaves your computer is the <b>text of a form's field labels and dropdown options</b>, sent to Google Gemini
+    when you click <b>Fill this form</b> (and only if you have added a Gemini API key). Your answers, files and PIN are
+    never sent anywhere. There is no analytics, tracking, account, or server run by Form Filler.
+  </div>
+
+  <h2>1. What Form Filler stores</h2>
+  <ul>
+    <li><b>Profiles</b>: the personal, family, address, contact, education, category, work and custom details you type in.</li>
+    <li><b>Documents</b>: files you add to the Document Locker (photo, signature, marksheets, certificates) with their names and tags.</li>
+    <li><b>Settings</b>: your Gemini API key and model name.</li>
+    <li><b>Site access list</b>: managed by Chrome itself (sites where you allowed Form Filler to run).</li>
+  </ul>
+
+  <h2>2. Where and how it is stored</h2>
+  <ul>
+    <li>Only inside your Chrome profile on this computer: <code>chrome.storage.local</code> for profiles and settings, and
+      the extension's <code>IndexedDB</code> for document files. Nothing is synced to your Google account or any cloud.</li>
+    <li>Everything is <b>encrypted with AES-256-GCM</b> using a key derived from your PIN (PBKDF2-SHA-256, 600,000 rounds, random salt).
+      Your PIN itself is never stored.</li>
+    <li>When you unlock, the key is kept only in Chrome's in-memory session storage (never written to disk) and is erased when you
+      click <b>Lock</b>, after <b>5 minutes without use</b>, or when you close the browser.</li>
+    <li>After several wrong PINs, Form Filler makes you wait before trying again.</li>
+  </ul>
+  <p class="notice small">Honest limits: a short, numbers-only PIN can be guessed by someone who copies your Chrome profile files and tries
+    PINs offline. Use a longer PIN, ideally with letters. Encryption cannot protect you from malware already running on your
+    computer, or from anyone using your computer while Form Filler is unlocked. If you forget your PIN, your data cannot be recovered.</p>
+
+  <h2>3. What is sent to Google Gemini (and what is not)</h2>
+  <table>
+    <tr><th>Sent (only when you click Fill, only with an API key)</th><th>Never sent</th></tr>
+    <tr>
+      <td>
+        <ul>
+          <li>Each form field's label, nearby heading, placeholder, name attribute and type</li>
+          <li>Dropdown and radio-button option texts shown on the page</li>
+          <li>The fixed list of generic profile key names (e.g. <code>personal.dob</code>) and their descriptions</li>
+          <li>The <i>names</i> (not values) of any custom fields you created</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Any of your profile values (name, date of birth, address, numbers…)</li>
+          <li>Your documents or their names</li>
+          <li>Your PIN</li>
+          <li>The page address (URL) or anything you typed into the form</li>
+          <li>Password, card, CVV, bank, OTP and captcha fields (skipped entirely)</li>
+        </ul>
+      </td>
+    </tr>
+  </table>
+  <p>Gemini replies with which profile key fits each field. Form Filler then looks up your values and fills them in
+    <b>locally</b> on your computer. The request goes directly from your browser to
+    <code>generativelanguage.googleapis.com</code> using your own API key, so Google's
+    <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Gemini API terms</a> and
+    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">privacy policy</a> apply to that request.
+    Note that on Google's free tier, Google may use submitted content to improve its products; this content is only
+    field labels and option texts, never your data. Without an API key, Form Filler uses an offline keyword matcher and
+    sends nothing at all.</p>
+
+  <h2>4. Fields Form Filler will never fill</h2>
+  <p>Passwords, credit/debit card numbers, expiry dates, CVV/CVC, bank account numbers, IFSC/SWIFT/IBAN codes,
+    UPI/ATM PINs, OTPs/verification codes, security questions and captchas. These are detected by field type,
+    autocomplete hints and label text, and are left untouched and not sent to the AI.</p>
+
+  <h2>5. What Form Filler will never do</h2>
+  <ul>
+    <li>Never submits a form or clicks a submit button. You always review and submit yourself.</li>
+    <li>Never runs on a page until you click <b>Fill this form</b> on it. Chrome asks your permission for each site the first
+      time; you can remove that permission any time in Settings → Sites with access, or in Chrome's extension settings.</li>
+    <li>No analytics, telemetry, crash reporting, advertising, tracking pixels or remote code. The extension's only network
+      request is the Gemini call described above.</li>
+    <li>No selling or sharing of data. The developer never receives any of your data.</li>
+  </ul>
+
+  <h2>6. Document Locker on web pages</h2>
+  <p>The "Pick from locker" window opens inside a protected extension frame that the web page cannot read. A document is
+    handed to the page only when you click <b>Attach</b>, and only to the upload field you chose. Resizing happens locally.</p>
+
+  <h2>7. Backups, export and deletion</h2>
+  <ul>
+    <li><b>Export backup</b> saves one file that stays encrypted with the PIN in use at the time. Store it safely; anyone with the file
+      and that PIN can read it.</li>
+    <li><b>Import backup</b> replaces all current data with the backup's contents.</li>
+    <li><b>Delete all data</b> erases profiles, documents, settings, your PIN data and site permissions from this browser.
+      Uninstalling the extension also removes its stored data.</li>
+  </ul>
+
+  <h2>8. Children</h2>
+  <p>Form Filler does not collect data from anyone. Profiles you create for family members stay on your computer like everything else.</p>
+
+  <h2>9. Changes and contact</h2>
+  <p>Any change to this policy will be listed here with a new date. Questions: open an issue in the project's GitHub repository.</p>
+</main>
+</body>
+</html>

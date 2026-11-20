@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Form Filler</title>
+  <link rel="stylesheet" href="../lib/ui.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="../icons/icon48.png" alt="" width="28" height="28"> <b>Form Filler</b></div>
+    <nav id="tabs">
+      <button data-tab="profiles" class="active">My Profile</button>
+      <button data-tab="docs">Document Locker</button>
+      <button data-tab="settings">Settings</button>
+      <button data-tab="data">Backup &amp; data</button>
+      <a href="../privacy.html" target="_blank">Privacy</a>
+    </nav>
+    <button id="lock-now" title="Lock now">🔒 Lock</button>
+  </header>
+
+  <div id="lock" class="lockwrap hidden"></div>
+
+  <main id="app" class="hidden">
+    <!-- PROFILES -->
+    <section data-panel="profiles">
+      <div class="card row profile-bar">
+        <label class="grow"><span>Profile</span><select id="profile-select"></select></label>
+        <button id="profile-add">+ New profile</button>
+        <button id="profile-rename">Rename</button>
+        <button id="profile-delete" class="danger">Delete</button>
+        <span id="save-state" class="small muted"></span>
+      </div>
+      <p class="muted small">Changes save automatically and are encrypted. Fill only what you want; empty fields are skipped.
+        Dates are stored as day/month/year and converted to each form's format.</p>
+      <div id="profile-form"></div>
+      <details class="card section" open>
+        <summary><h3>Custom fields</h3></summary>
+        <p class="muted small">Anything else a form may ask for (e.g. "Employee ID", "Registration number").
+          The <b>field name</b> is shared with the AI so it can recognise the field; the <b>value</b> never is.</p>
+        <div id="custom-list"></div>
+        <button id="custom-add">+ Add custom field</button>
+      </details>
+      <p class="small muted">Just trying it out? <button class="link small" id="profile-demo">Add a demo profile with fake data</button>
+        and use it on <code>test/sample-form.html</code>.</p>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section data-panel="docs" class="hidden">
+      <div class="card">
+        <h2>Document Locker</h2>
+        <p class="muted">Photo, signature, marksheets, certificates… Stored encrypted in this browser. When you click
+          <b>Fill this form</b>, a <b>📎 Pick from locker</b> button appears next to every upload field on the page.</p>
+        <div class="row">
+          <label class="btn primary-file">+ Add documents<input type="file" id="doc-input" multiple hidden></label>
+          <input id="doc-search" class="grow" placeholder="Search by name or tag" style="max-width:320px">
+        </div>
+      </div>
+      <div id="doc-grid" class="doc-grid"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section data-panel="settings" class="hidden">
+      <div class="card">
+        <h2>AI field matching (Google Gemini)</h2>
+        <p class="muted">Gemini is used <b>only</b> to work out which of your profile keys each form field asks for.
+          It receives field labels, placeholders and dropdown option texts from the page, plus the list of generic
+          profile key names. It never receives your profile values or documents. Without a key, a simpler offline
+          keyword matcher is used.</p>
+        <label><span>Gemini API key (get one at aistudio.google.com)</span>
+          <div class="row"><input type="password" id="api-key" class="grow" autocomplete="off" spellcheck="false">
+          <button id="api-key-show" type="button">Show</button></div></label>
+        <label style="margin-top:8px"><span>Model</span><input id="model" spellcheck="false"></label>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="settings-save">Save</button>
+          <button id="api-test">Test connection</button>
+          <span id="settings-msg" class="small"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Change PIN</h2>
+        <div class="grid3">
+          <label><span>Current PIN</span><input type="password" id="pin-old" autocomplete="off"></label>
+          <label><span>New PIN (min 6)</span><input type="password" id="pin-new" autocomplete="new-password"></label>
+          <label><span>Confirm new PIN</span><input type="password" id="pin-new2" autocomplete="new-password"></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button id="pin-change">Change PIN</button><span id="pin-msg" class="small"></span></div>
+      </div>
+      <div class="card">
+        <h2>Sites with access</h2>
+        <p class="muted">Form Filler asks for access to a site only when you click <b>Fill this form</b> there.
+          You can remove access at any time.</p>
+        <div id="sites"></div>
+      </div>
+    </section>
+
+    <!-- DATA -->
+    <section data-panel="data" class="hidden">
+      <div class="card">
+        <h2>Export backup</h2>
+        <p class="muted">Downloads one file with all profiles, documents and settings. It stays <b>encrypted with your
+          current PIN</b>, so you'll need that PIN to open it after importing. Keep it somewhere safe.</p>
+        <button class="primary" id="export">Export backup</button>
+      </div>
+      <div class="card">
+        <h2>Import backup</h2>
+        <p class="muted">Replaces <b>everything</b> currently stored with the backup's contents. Afterwards, unlock with
+          the PIN that was in use when the backup was made.</p>
+        <label class="btn">Choose backup file…<input type="file" id="import" accept=".json,application/json" hidden></label>
+        <span id="import-msg" class="small"></span>
+      </div>
+      <div class="card danger-zone">
+        <h2>Delete all data</h2>
+        <p class="muted">Permanently erases all profiles, documents, the API key and your PIN from this browser.
+          This cannot be undone. Type <b>DELETE</b> to confirm.</p>
+        <div class="row"><input id="delete-confirm" style="max-width:160px" autocomplete="off">
+          <button class="danger solid" id="delete-all">Delete everything</button></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sample Recruitment Application (Form Filler test)</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; background: #f4f6fa; color: #1c2430; }
+    h1 { font-size: 22px; }
+    fieldset { background: #fff; border: 1px solid #d6dbe3; border-radius: 10px; margin: 0 0 16px; padding: 12px 16px 16px; }
+    legend { font-weight: 700; padding: 0 6px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px 16px; }
+    label { display: block; font-size: 13px; }
+    input, select, textarea { display: block; width: 100%; box-sizing: border-box; padding: 6px 8px; margin-top: 3px; font: inherit; border: 1px solid #b9c2cf; border-radius: 6px; }
+    input[type=radio], input[type=checkbox] { display: inline; width: auto; margin: 0 4px 0 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #d6dbe3; padding: 6px; text-align: left; font-size: 13px; }
+    .inline label { display: inline-block; margin-right: 14px; }
+    .note { font-size: 12px; color: #5d6b7c; }
+    #submitted { display: none; background: #fde68a; padding: 10px; border-radius: 8px; margin-bottom: 12px; }
+    button[type=submit] { padding: 10px 22px; font-size: 15px; border-radius: 8px; border: 0; background: #1d4ed8; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>Sample Recruitment Application Form</h1>
+  <p class="note">Test page for the Form Filler extension. Nothing here is sent anywhere. If this form is ever submitted,
+    a yellow banner appears below. Form Filler should <b>never</b> trigger it.</p>
+  <div id="submitted">⚠️ The form was submitted.</div>
+
+  <form id="app" action="#" autocomplete="off">
+    <fieldset>
+      <legend>1. Personal Details</legend>
+      <div class="grid">
+        <label>Title
+          <select name="salutation"><option value="">-- Select --</option><option>Shri</option><option>Smt</option><option>Kumari</option><option>Dr</option></select>
+        </label>
+        <label for="cand_name">Name of the Candidate (as in Class 10 certificate)</label>
+        <input id="cand_name" name="cand_name" style="grid-column: span 1">
+        <label>First Name <input name="fname"></label>
+        <label>Middle Name <input name="mname"></label>
+        <label>Surname <input name="lname"></label>
+        <label>Father's Name <input name="father_name"></label>
+        <label>Mother's Name <input name="mother_name"></label>
+        <label>Spouse Name (if married) <input name="spouse"></label>
+        <label>Date of Birth (DD/MM/YYYY) <input name="dob" placeholder="DD/MM/YYYY" maxlength="10"></label>
+        <label>Age as on today <input name="age" type="number"></label>
+        <label>Marital Status
+          <select name="marital"><option value="">Select</option><option value="S">Single</option><option value="M">Married</option><option value="W">Widow/Widower</option><option value="D">Divorced</option></select>
+        </label>
+        <label>Nationality <input name="nationality"></label>
+        <label>Religion
+          <select name="religion"><option value="">Select</option><option>Hindu</option><option>Muslim</option><option>Christian</option><option>Sikh</option><option>Buddhist</option><option>Jain</option><option>Other</option></select>
+        </label>
+        <label>Blood Group
+          <select name="blood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select>
+        </label>
+        <label>Aadhaar Card Number <input name="aadhaar" maxlength="12" inputmode="numeric"></label>
+        <label>Identification Mark <input name="idmark"></label>
+      </div>
+      <p style="margin:12px 0 4px">Gender</p>
+      <div class="inline">
+        <label><input type="radio" name="gender" value="M"> Male</label>
+        <label><input type="radio" name="gender" value="F"> Female</label>
+        <label><input type="radio" name="gender" value="T"> Transgender</label>
+      </div>
+      <p style="margin:12px 0 4px">Date of birth (as separate boxes)</p>
+      <div class="grid">
+        <label>Birth Day <select name="dob_d"><option value="">DD</option></select></label>
+        <label>Birth Month <select name="dob_m"><option value="">MM</option><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select></label>
+        <label>Birth Year <select name="dob_y"><option value="">YYYY</option></select></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>2. Category</legend>
+      <div class="grid">
+        <label>Category
+          <select name="category"><option value="">--Select--</option><option value="UR">UR (Unreserved)</option><option value="OBC">OBC (Non-Creamy Layer)</option><option value="SC">SC</option><option value="ST">ST</option><option value="EWS">EWS</option></select>
+        </label>
+        <label>Category Certificate No. <input name="cat_cert"></label>
+        <label>Certificate Issue Date <input type="date" name="cat_date"></label>
+        <label>Domicile State <input name="domicile"></label>
+      </div>
+      <p style="margin:12px 0 4px">Are you a Person with Benchmark Disability (PwBD)?</p>
+      <div class="inline">
+        <label><input type="radio" name="pwbd" value="Y"> Yes</label>
+        <label><input type="radio" name="pwbd" value="N"> No</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3. Contact Details</legend>
+      <div class="grid">
+        <label>Email ID <input type="email" name="email"></label>
+        <label>Mobile Number (10 digits) <input type="tel" name="mobile" maxlength="10"></label>
+        <label>Alternate Mobile <input type="tel" name="alt_mobile" maxlength="10"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>4. Permanent Address</legend>
+      <div class="grid">
+        <label>House No. / Street <input name="p_line1"></label>
+        <label>Village / Locality <input name="p_village"></label>
+        <label>City <input name="p_city"></label>
+        <label>State
+          <select name="p_state" id="p_state"><option value="">Select State</option><option>Bihar</option><option>Delhi</option><option>Madhya Pradesh</option><option>Maharashtra</option><option>Rajasthan</option><option>Uttar Pradesh</option><option>West Bengal</option></select>
+        </label>
+        <label>District <select name="p_district" id="p_district"><option value="">Select State first</option></select></label>
+        <label>PIN Code <input name="p_pin" maxlength="6"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>5. Correspondence Address</legend>
+      <label><input type="checkbox" name="same_addr"> Same as permanent address</label>
+      <div class="grid" style="margin-top:8px">
+        <label style="grid-column: 1 / -1">Full Address <textarea name="c_address" rows="2"></textarea></label>
+        <label>City <input name="c_city"></label>
+        <label>PIN Code <input name="c_pin" maxlength="6"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>6. Educational Qualifications</legend>
+      <table>
+        <thead><tr><th>Examination</th><th>Board / University</th><th>Roll No.</th><th>Year of Passing</th><th>Percentage</th></tr></thead>
+        <tbody>
+          <tr><td>10th / Matriculation</td><td><input name="e10_board"></td><td><input name="e10_roll"></td><td><input name="e10_year"></td><td><input name="e10_pct"></td></tr>
+          <tr><td>12th / Intermediate</td><td><input name="e12_board"></td><td><input name="e12_roll"></td><td><input name="e12_year"></td><td><input name="e12_pct"></td></tr>
+          <tr><td>Graduation</td><td><input name="eg_board"></td><td><input name="eg_roll"></td><td><input name="eg_year"></td><td><input name="eg_pct"></td></tr>
+        </tbody>
+      </table>
+    </fieldset>
+
+    <fieldset>
+      <legend>7. Work Experience</legend>
+      <div class="grid">
+        <label>Present Employer <input name="employer"></label>
+        <label>Designation <input name="designation"></label>
+        <label>Working Since <input name="work_from" placeholder="dd-mm-yyyy"></label>
+        <label>Total Experience (years) <input name="exp_years"></label>
+        <label>Employee ID <input name="emp_id"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>8. Uploads</legend>
+      <div class="grid">
+        <label>Recent Photograph (JPG, 20 KB to 50 KB, 200x230 px) <input type="file" name="photo" accept="image/jpeg,.jpg,.jpeg"></label>
+        <label>Signature (JPG, 10-20 KB, 140x60 pixels) <input type="file" name="sign" accept="image/*"></label>
+        <label>Class 10 Marksheet (PDF, max 1 MB) <input type="file" name="ms10" accept=".pdf,application/pdf"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>9. Fee Payment &amp; Security (must NOT be filled)</legend>
+      <div class="grid">
+        <label>Create Password <input type="password" name="pwd"></label>
+        <label>Card Number <input name="card_number"></label>
+        <label>CVV <input name="cvv" maxlength="3"></label>
+        <label>Bank Account Number <input name="bank_acc"></label>
+        <label>IFSC Code <input name="ifsc"></label>
+        <label>Enter OTP sent to mobile <input name="otp"></label>
+        <label>Enter Captcha <input name="captcha"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>10. Declaration</legend>
+      <label><input type="checkbox" name="declare"> I declare that the information given above is true to the best of my knowledge.</label>
+    </fieldset>
+
+    <button type="submit">Submit Application</button>
+  </form>
+
+  <script>
+    // Day and year dropdowns
+    const d = document.querySelector('[name=dob_d]'), y = document.querySelector('[name=dob_y]');
+    for (let i = 1; i <= 31; i++) d.add(new Option(String(i).padStart(2, '0')));
+    for (let i = 2010; i >= 1960; i--) y.add(new Option(i));
+    // Dependent dropdown: districts load 500 ms after the state changes (like real sites)
+    const districts = {
+      'Uttar Pradesh': ['Agra', 'Lucknow', 'Prayagraj', 'Varanasi'],
+      'Bihar': ['Gaya', 'Patna'], 'Delhi': ['New Delhi', 'South Delhi'],
+      'Maharashtra': ['Mumbai', 'Pune'], 'Rajasthan': ['Jaipur', 'Jodhpur'],
+      'Madhya Pradesh': ['Bhopal', 'Indore'], 'West Bengal': ['Kolkata', 'Howrah']
+    };
+    document.getElementById('p_state').addEventListener('change', (e) => {
+      const sel = document.getElementById('p_district');
+      sel.innerHTML = '<option value="">Loading…</option>';
+      setTimeout(() => {
+        sel.innerHTML = '<option value="">Select District</option>' + (districts[e.target.value] || []).map((x) => `<option>${x}</option>`).join('');
+      }, 500);
+    });
+    document.getElementById('app').addEventListener('submit', (e) => {
+      e.preventDefault();
+      document.getElementById('submitted').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

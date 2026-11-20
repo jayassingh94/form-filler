@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Form Filler</title>
+  <link rel="stylesheet" href="../lib/ui.css">
+  <style>
+    body { width: 330px; padding: 12px; }
+    header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    header b { flex: 1; font-size: 15px; }
+    header button { padding: 4px 8px; font-size: 12px; }
+    #fill { width: 100%; padding: 10px; font-size: 15px; margin-top: 10px; }
+    #result { margin-top: 10px; }
+    #result .line { display: flex; align-items: center; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .links { display: flex; gap: 12px; margin-top: 12px; font-size: 12px; flex-wrap: wrap; }
+    #lock .card { box-shadow: none; padding: 4px 0; border: 0; }
+    #lock h2 { font-size: 15px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="../icons/icon48.png" width="22" height="22" alt="">
+    <b>Form Filler</b>
+    <button id="lock-now" class="hidden" title="Lock now">🔒 Lock</button>
+  </header>
+  <div id="lock" class="hidden"></div>
+  <div id="main" class="hidden">
+    <label><span>Fill as</span><select id="profile"></select></label>
+    <label class="row small" style="margin-top:8px"><input type="checkbox" id="overwrite"> Replace values already in the form</label>
+    <div id="ai-note" class="notice small hidden" style="margin-top:8px">No Gemini API key set: using basic offline keyword matching.
+      <button class="link small" id="go-settings">Add key</button></div>
+    <button class="primary" id="fill">Fill this form</button>
+    <div id="result"></div>
+    <div class="links">
+      <button class="link" id="open-profile">My Profile</button>
+      <button class="link" id="open-docs">Document Locker</button>
+      <button class="link" id="open-settings">Settings</button>
+      <a href="../privacy.html" target="_blank">Privacy</a>
+    </div>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
