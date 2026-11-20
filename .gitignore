@@ -1,0 +1,18 @@
+# Never commit personal data, backups or secrets
+*.ffbackup
+*.ffbackup.json
+form-filler-backup*.json
+*.env
+.env*
+secrets*
+*api-key*
+*apikey*
+my-documents/
+personal/
+
+# OS / tooling
+.DS_Store
+node_modules/
+*.zip
+*.crx
+*.pem
