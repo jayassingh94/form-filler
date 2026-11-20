@@ -1,7 +1,7 @@
 // "Fill a PDF": fill real form fields (AcroForm) directly, or find blanks on flat/scanned forms and
 // write values onto the page. Values are resolved and written locally; only labels / page images go to AI.
 import * as pdfjs from '../vendor/pdfjs/pdf.min.mjs';
-import { PDFDocument, StandardFonts, rgb, degrees, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown, PDFOptionList } from '../vendor/pdf-lib/pdf-lib.esm.min.js';
+import { PDFDocument, StandardFonts, rgb, degrees, drawSvgPath, drawRectangle, pushGraphicsState, popGraphicsState, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown, PDFOptionList } from '../vendor/pdf-lib/pdf-lib.esm.min.js';
 import '../content/fillcore.js';
 import { loadVault, lock, isUnlocked } from '../lib/vault.js';
 import { showLock, onLocked } from '../lib/lockui.js';
@@ -10,6 +10,7 @@ import { mapFieldsWithGemini, detectFlatPage } from '../lib/ai.js';
 import { addDocument } from '../lib/docs.js';
 import { toB64 } from '../lib/crypto.js';
 import * as G from '../lib/pdfgeom.js';
+import { createTextWriter, graphemes, hasDevanagari, DEVA_FONT_PATH } from '../lib/pdftext.js';
 
 const C = globalThis.FFCore;
 pdfjs.GlobalWorkerOptions.workerSrc = '../vendor/pdfjs/pdf.worker.min.mjs';
@@ -31,7 +32,14 @@ let seq = 0;
 
 // Measuring text for previews with the same metrics family as the PDF (Helvetica).
 const measureCtx = document.createElement('canvas').getContext('2d');
-const measure = (t, size) => { measureCtx.font = `${size}px Helvetica, Arial, sans-serif`; return measureCtx.measureText(t).width; };
+const measure = (t, size) => { measureCtx.font = `${size}px Helvetica, Arial, 'FF Devanagari', sans-serif`; return measureCtx.measureText(t).width; };
+document.fonts.load("12px 'FF Devanagari'", 'क').catch(() => {});
+
+let devaBytes = null;
+async function devanagariFont() {
+  devaBytes ??= new Uint8Array(await (await fetch(chrome.runtime.getURL(DEVA_FONT_PATH))).arrayBuffer());
+  return devaBytes;
+}
 
 // ---------------- boot & lock ----------------
 onLocked(() => location.reload()); // wipes the PDF and values from memory
@@ -466,7 +474,7 @@ function renderItem(it) {
   const fit = it.cells > 1 ? size : G.fitFontSize(it.text, size, it.box.w * p.vp1.width - 3, measure);
   el.style.fontSize = fit * k + 'px';
   if (it.cells > 1) {
-    const chars = [...it.text].slice(0, it.cells);
+    const chars = graphemes(it.text).slice(0, it.cells);
     el.innerHTML = `<span class="grip">⠿</span><div class="cells">${Array.from({ length: it.cells }, (_, i) => `<span>${esc(chars[i] || '')}</span>`).join('')}</div><span class="rs"></span>`;
   } else {
     el.innerHTML = `<span class="grip">⠿</span><input spellcheck="false" aria-label="${esc(it.label)}"><span class="rs"></span>`;
@@ -635,21 +643,25 @@ document.addEventListener('keydown', (e) => {
 // ---------------- build the filled PDF (locally) ----------------
 async function buildPdf() {
   const doc = await PDFDocument.load(file.bytes, { updateMetadata: false });
-  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const writer = await createTextWriter(doc, { StandardFonts, rgb, degrees, drawSvgPath, pushGraphicsState, popGraphicsState },
+    globalThis.fontkit, await devanagariFont());
+  const font = writer.latin;
   const problems = [];
-  const canWrite = (t) => { try { font.encodeText(t); return true; } catch { return false; } };
+  const canWrite = (t) => writer.canWrite(t);
 
   // 1) Real form fields
   const acroItems = items.filter((i) => i.acro);
   if (acroItems.length) {
     const form = doc.getForm();
     const done = new Set();
+    const hindiFields = [];
     for (const it of acroItems) {
       const name = it.acro.name;
       try {
         const f = form.getField(name);
         if (f instanceof PDFTextField) {
           if (it.text && !canWrite(it.text)) { problems.push(it.label); continue; }
+          if (hasDevanagari(it.text)) { hindiFields.push([f, it]); continue; } // after the Latin appearances below
           f.setText(it.text || undefined);
         } else if (f instanceof PDFDropdown || f instanceof PDFOptionList) {
           if (it.text) f.select(it.text); else f.clear();
@@ -665,6 +677,29 @@ async function buildPdf() {
       }
     }
     try { form.updateFieldAppearances(font); } catch { /* keep going; viewers regenerate appearances */ }
+    // Hindi text fields: store the value and draw its appearance from correctly shaped outlines.
+    for (const [f, it] of hindiFields) {
+      try {
+        f.setText(it.text);
+        f.updateAppearances(font, (_field, widget) => {
+          const r = widget.getRectangle();
+          let size = Math.min(12, r.height * 0.6);
+          size = G.fitFontSize(it.text, size, r.width - 4, (t, s) => writer.widthOf(t, s));
+          const ops = [];
+          // keep the field's border (the default appearance would have drawn it)
+          const mk = widget.getAppearanceCharacteristics();
+          if (mk?.getBorderColor()?.length) {
+            const bw = widget.getBorderStyle()?.getWidth() ?? 1;
+            ops.push(...drawRectangle({ x: bw / 2, y: bw / 2, width: r.width - bw, height: r.height - bw, borderWidth: bw,
+              borderColor: rgb(0, 0, 0), rotate: degrees(0), xSkew: degrees(0), ySkew: degrees(0) }));
+          }
+          ops.push(...writer.outlineOps(it.text, { x: 2, y: r.height / 2 - size * 0.3, size, color: rgb(0, 0, 0) }));
+          return { normal: ops };
+        });
+      } catch (err) {
+        problems.push(err.mixed ? `${it.label} (mixed Hindi and English in one field)` : `${it.label} (${err.message})`);
+      }
+    }
     if ($('#flatten').checked) form.flatten();
   }
 
@@ -688,12 +723,12 @@ async function buildPdf() {
     }
     if (!it.text) continue;
     if (!canWrite(it.text)) { problems.push(it.label || it.text); continue; }
-    const fm = (t, s) => font.widthOfTextAtSize(t, s);
+    const fm = (t, s) => writer.widthOf(t, s);
     let size = it.fontSize || G.autoFontSize(hPt);
     if (!(it.cells > 1)) size = G.fitFontSize(it.text, size, wPt - 3, fm);
     for (const piece of G.layoutText({ text: it.text, wPt, hPt, size, cells: it.cells, measure: fm })) {
       const [x, y] = toPdf(piece.x, piece.baseline);
-      pg.drawText(piece.text, { x, y, size, font, color: rgb(0, 0, 0), rotate: degrees(angle) });
+      writer.draw(pg, piece.text, { x, y, size, angle, color: rgb(0, 0, 0) });
     }
   }
   return { bytes: await doc.save(), problems };
@@ -712,7 +747,7 @@ async function saveCommon(after) {
     await after(bytes);
     msg.className = problems.length ? 'small notice' : 'small ok';
     msg.textContent = problems.length
-      ? `Saved, but these couldn't be written (characters outside the basic Latin font, e.g. Hindi): ${problems.join(', ')}. Please write them by hand.`
+      ? `Saved, but these couldn't be written: ${problems.join(', ')}. Only English (Latin) and Hindi/Devanagari text is supported; please write these by hand.`
       : '✓ Done. Please check the PDF before you submit it.';
   } catch (err) {
     msg.className = 'small err';

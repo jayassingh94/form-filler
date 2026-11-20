@@ -55,8 +55,13 @@ After pulling new code, click the ↻ reload icon on the Form Filler card in `ch
    click to edit its text, change which profile value it uses, set letter boxes or capitals, or add **+ Text** / **+ Tick**.
 4. Click **Download filled PDF** (or **Save to locker**). Check it before submitting.
 
-Notes: text is written in Helvetica, so Hindi or other non-Latin text can't be written onto PDFs yet (you'll be told
-which boxes were skipped). AI box positions on real scans won't always be exact, so use the preview to adjust them.
+Notes:
+- **Hindi and Devanagari** (Marathi, Nepali, Sanskrit…) work, including mixed text like "आशा (Asha)". It is shaped properly
+  (conjuncts, ि, reph, ु/ँ) with the bundled Noto Sans Devanagari font and drawn as outlines, so it looks right in every
+  PDF viewer. Hindi drawn onto flat forms can't be selected or searched as text; in fillable fields the real Unicode value
+  is stored. One fillable field can't mix Hindi and English letters, and you'll be told if that happens. Other scripts
+  (Tamil, Bengali…) aren't supported yet.
+- AI box positions on real scans won't always be exact, so use the preview to adjust them.
 To regenerate the sample PDFs, run `node tests/make-sample-pdfs.mjs`.
 
 ## Automated tests
@@ -94,7 +99,8 @@ popup ──"Fill"──► background worker ──inject──► page (conten
 | `privacy.html` | Privacy policy |
 | `pdf/` | Fill a PDF page: field detection, preview editor, writing the PDF |
 | `lib/pdfgeom.js` | Box maths, text layout (letter boxes), tick choice, offline blank finder |
-| `vendor/` | pdf-lib 1.17.1 (MIT) and pdf.js 4.10.38 (Apache-2.0), bundled because extensions can't load remote code |
+| `lib/pdftext.js` | Writes Latin (Helvetica) + Devanagari (shaped with fontkit, drawn as outlines) text |
+| `vendor/` | pdf-lib (MIT), pdf.js (Apache-2.0), @pdf-lib/fontkit (MIT), regenerator-runtime (MIT), Noto Sans Devanagari (SIL OFL), bundled because extensions can't load remote code. See `vendor/README.txt` |
 | `test/sample-form.html` | Sample form for manual testing |
 | `test/sample-*.pdf` | Sample fillable, flat and scanned PDF forms |
 

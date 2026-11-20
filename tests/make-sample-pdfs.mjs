@@ -97,6 +97,7 @@ async function flat() {
   t('Signature of Candidate', 420, 250, 9);
   line(400, 560, 262);
   add({ label: 'Signature of Candidate', kind: 'skip', box_2d: box2d(400, 262, 560, 290), key: null });
+  lineField(15, 'Name in Hindi', 222, 'personal.nameHindi', 150, 455, { uppercase: false });
 
   fs.writeFileSync(ROOT + 'test/sample-flat-form.pdf', await doc.save());
   fs.mkdirSync(ROOT + 'tests/fixtures', { recursive: true });
@@ -118,6 +119,7 @@ async function acro() {
   text('Applicant Name', 'applicant_name', 740);
   text("Father's Name", 'father_name', 710);
   text('Date of Birth (DD/MM/YYYY)', 'dob', 680, 120);
+  text('Name in Hindi', 'name_hindi', 440);
   t('Gender', 40, 655);
   const g = form.createRadioGroup('gender');
   g.addOptionToPage('Male', page, { x: 200, y: 650, width: 12, height: 12 }); t('Male', 216, 652);

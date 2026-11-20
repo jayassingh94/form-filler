@@ -256,6 +256,7 @@
       if (fk) return `education.${level}.${fk}`;
     }
 
+    if (/name/.test(own) && /hindi|devanagari|regional|vernacular|local language|in your mother tongue/.test(own)) return 'personal.nameHindi';
     if (/first ?name|given ?name|\bfname\b/.test(own)) return 'personal.firstName';
     if (/middle ?name/.test(own)) return 'personal.middleName';
     if (/last ?name|surname|family ?name|\blname\b/.test(own)) return 'personal.lastName';

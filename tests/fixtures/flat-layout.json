@@ -462,6 +462,20 @@
     941
    ],
    "key": null
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "Name in Hindi",
+   "kind": "text",
+   "box_2d": [
+    720,
+    252,
+    736,
+    765
+   ],
+   "key": "personal.nameHindi"
   }
  ]
 }

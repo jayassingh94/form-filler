@@ -82,6 +82,9 @@
     </main>
   </div>
 
+  <!-- fontkit (Devanagari shaping) needs regenerator-runtime as a global; both are bundled locally -->
+  <script src="../vendor/regenerator-runtime/runtime.js"></script>
+  <script src="../vendor/fontkit/fontkit.umd.min.js"></script>
   <script type="module" src="pdf.js"></script>
 </body>
 </html>
