@@ -232,7 +232,9 @@
     const own = label;
     const first = (rules, s) => { for (const [re, k] of rules) if (re.test(s)) return k; return null; };
     const isDob = /birth|\bdob\b/.test(own);
+    const hasFullFormat = !!detectDateFormat(own) || f.type === 'date';
 
+    if (isDob && !/place/.test(own) && hasFullFormat) return 'personal.dob';
     if (isDob && /\bday\b|\bdd\b/.test(own)) return 'personal.dobDay';
     if (isDob && /\bmonth\b|\bmm\b/.test(own)) return 'personal.dobMonth';
     if (isDob && /\byear\b|\byyyy\b/.test(own)) return 'personal.dobYear';
@@ -245,6 +247,8 @@
     if (/guardian/.test(own)) return /relation/.test(own) ? 'family.guardianRelation' : 'family.guardianName';
     if (/family income|annual income|income/.test(own)) return 'family.annualFamilyIncome';
     if (/same as permanent|same as above/.test(own)) return 'currentAddress.sameAsPermanent';
+    if (/certificate/.test(ctx) && /\bdate\b/.test(own) && /categor|caste|obc|ews|\bsc\b|\bst\b/.test(ctx)) return 'category.certificateDate';
+    if (/working since|joining|date of appointment|employed since|\bfrom\b.*\bdate\b|\bdate\b.*\bfrom\b/.test(own)) return 'work.current.from';
 
     const level = first(EDU, ctx);
     if (level && (/qualif|education|exam|board|universit|roll|passing|percent|marks|cgpa|school|college|subject|stream|division/.test(ctx))) {

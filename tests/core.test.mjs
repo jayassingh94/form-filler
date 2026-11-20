@@ -78,4 +78,9 @@ test('offline keyword mapping', () => {
   assert.equal(k('Category'), 'category.category');
   assert.equal(k('Name of the Candidate'), 'personal.fullName');
   assert.equal(k('Gender'), 'personal.gender');
+  assert.equal(k('Date of Birth (DD/MM/YYYY)'), 'personal.dob');
+  assert.equal(k('Birth Day'), 'personal.dobDay');
+  assert.equal(k('Birth Month'), 'personal.dobMonth');
+  assert.equal(k('Certificate Issue Date', { section: '2. Category' }), 'category.certificateDate');
+  assert.equal(k('Working Since'), 'work.current.from');
 });

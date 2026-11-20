@@ -93,7 +93,11 @@ async function handleFill({ tabId, profileId, overwrite }) {
     }
   }
   if (mode === 'offline') {
+    const customs = (profile.custom || []).map((c, i) => ({ i, n: C.norm(c.label) })).filter((c) => c.n);
     candidates.forEach((x, i) => {
+      const label = C.norm(x.d.label || x.d.placeholder || x.d.name);
+      const custom = label && customs.find((c) => c.n === label || (c.n.length > 3 && label.includes(c.n)));
+      if (custom) { mapping.set(i, { key: `custom.${custom.i}`, confidence: 'high', dateFormat: null }); return; }
       const key = C.heuristicKey(x.d);
       if (key) mapping.set(i, { key, confidence: 'high', dateFormat: null });
     });
