@@ -1,4 +1,5 @@
 import { loadVault, lock, isSetUp } from '../lib/vault.js';
+import { aiMode, quotaToday, quotaLimit } from '../lib/ai.js';
 import { showLock, onLocked } from '../lib/lockui.js';
 import { sitePattern } from '../lib/site.js';
 
@@ -34,7 +35,14 @@ async function boot() {
   const last = (await chrome.storage.local.get('ff_last_profile')).ff_last_profile;
   $('#profile').innerHTML = vault.profiles.map((p) => `<option value="${p.id}">${esc(p.label)}</option>`).join('');
   if (vault.profiles.some((p) => p.id === last)) $('#profile').value = last;
-  $('#ai-note').classList.toggle('hidden', !!vault.settings.apiKey);
+  const mode = aiMode(vault.settings);
+  const left = mode === 'service' ? await quotaToday() : null;
+  const note = mode === 'off' ? 'AI matching is off: using offline keyword matching.'
+    : mode === 'own' && !vault.settings.apiKey ? 'No Gemini key saved: using offline keyword matching.'
+    : mode === 'service' && left != null ? `Free AI: ${left} of ${await quotaLimit()} uses left today.`
+    : '';
+  $('#ai-note-text').textContent = note;
+  $('#ai-note').classList.toggle('hidden', !note);
 }
 
 // Work out the site permission pattern up front so the click handler can request it synchronously
@@ -100,7 +108,8 @@ function renderResult(r) {
   }
   if (r.sensitive) lines.push(`<div class="line small muted">🛡️ ${r.sensitive} sensitive field(s) skipped (password, card, bank, OTP…)</div>`);
   if (r.fileInputs) lines.push(`<div class="line small muted">📎 ${r.fileInputs} upload field(s): use "Pick from locker" on the page</div>`);
-  if (r.aiError) lines.push(`<div class="notice small" style="margin-top:6px">AI matching failed (${esc(r.aiError)}). Used offline matching instead.</div>`);
+  if (r.aiError) lines.push(`<div class="notice small" style="margin-top:6px">${r.aiLimit ? esc(r.aiError) + ' Used offline matching this time.' : `AI matching failed (${esc(r.aiError)}). Used offline matching instead.`}</div>`);
+  else if (r.remaining != null) lines.push(`<div class="small muted">Free AI: ${r.remaining} of ${r.limit ?? 10} uses left today.</div>`);
   else if (r.mode === 'offline') lines.push('<div class="small muted">Matched with offline keywords.</div>');
   if (r.fallbackModel) lines.push(`<div class="small muted">Your Gemini model was busy, so ${esc(r.fallbackModel)} answered instead.</div>`);
   lines.push('<div class="small muted" style="margin-top:6px">Nothing was submitted. Please review the form before submitting.</div>');

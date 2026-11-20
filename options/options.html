@@ -66,15 +66,28 @@
     <!-- SETTINGS -->
     <section data-panel="settings" class="hidden">
       <div class="card">
-        <h2>AI field matching (Google Gemini)</h2>
-        <p class="muted">Gemini is used <b>only</b> to work out which of your profile keys each form field asks for.
-          It receives field labels, placeholders and dropdown option texts from the page, plus the list of generic
-          profile key names. It never receives your profile values or documents. Without a key, a simpler offline
-          keyword matcher is used.</p>
-        <label><span>Gemini API key (get one at aistudio.google.com)</span>
-          <div class="row"><input type="password" id="api-key" class="grow" autocomplete="off" spellcheck="false">
-          <button id="api-key-show" type="button">Show</button></div></label>
-        <label style="margin-top:8px"><span>Model</span><input id="model" spellcheck="false"></label>
+        <h2>AI matching</h2>
+        <p class="muted">AI is used <b>only</b> to work out which of your profile fields each form field asks for, to find the
+          blanks on PDF forms, and to read photo/signature size rules. It receives field labels, placeholders and option texts,
+          blank form page images (Fill a PDF, after you agree) or upload instructions, plus generic profile field names.
+          <b>It never receives your profile values or documents.</b> <a href="../privacy.html" target="_blank">Details</a></p>
+        <div class="ai-modes" role="radiogroup" aria-label="AI matching">
+          <label class="ai-mode"><input type="radio" name="ai-mode" value="service">
+            <span><b>Form Filler AI (free)</b> <span class="tag">recommended</span><br>
+            <span class="muted small">No key needed. Up to 10 AI uses a day. Requests go through Form Filler's server, which passes them to
+              Google Gemini and stores nothing. <span id="quota-note"></span></span></span></label>
+          <label class="ai-mode"><input type="radio" name="ai-mode" value="own">
+            <span><b>Use my own Gemini key</b><br>
+            <span class="muted small">No daily limit from Form Filler. Requests go straight from your browser to Google.</span></span></label>
+          <label class="ai-mode"><input type="radio" name="ai-mode" value="off">
+            <span><b>Off: offline matching only</b><br><span class="muted small">Nothing is ever sent. Simpler keyword matching; scanned PDFs need boxes placed by hand.</span></span></label>
+        </div>
+        <div id="own-key" class="hidden" style="margin-top:10px">
+          <label><span>Gemini API key (get one at aistudio.google.com)</span>
+            <div class="row"><input type="password" id="api-key" class="grow" autocomplete="off" spellcheck="false">
+            <button id="api-key-show" type="button">Show</button></div></label>
+          <label style="margin-top:8px"><span>Model</span><input id="model" spellcheck="false"></label>
+        </div>
         <div class="row" style="margin-top:10px">
           <button class="primary" id="settings-save">Save</button>
           <button id="api-test">Test connection</button>

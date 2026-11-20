@@ -36,6 +36,10 @@ details.section > summary .count { margin-left: auto; font-size: 12px; color: va
 .doc .actions button { padding: 4px 10px; font-size: 12px; }
 .site { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .danger-zone { border-color: var(--danger); }
+.ai-modes { display: grid; gap: 8px; margin: 8px 0 4px; }
+.ai-mode { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.ai-mode:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.ai-mode input { width: auto; margin-top: 3px; }
 
 @media (max-width: 600px) {
   .top { padding: 8px 12px; gap: 8px; }

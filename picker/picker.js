@@ -4,7 +4,8 @@ import { showLock, onLocked } from '../lib/lockui.js';
 import { formatSize, fileExt } from '../lib/docs.js';
 import { toB64, fromB64 } from '../lib/crypto.js';
 import { openImageEditor } from '../lib/imgedit.js';
-import { extractUploadRules, lastModelUsed } from '../lib/ai.js';
+import { extractUploadRules, lastModelUsed, aiAvailable, aiMode } from '../lib/ai.js';
+import { DEFAULT_MODEL } from '../lib/gemini-core.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -142,17 +143,19 @@ async function editImage(blob, name, tags) {
   $('#browse').classList.add('hidden');
   box.classList.remove('hidden');
   const back = () => { box.classList.add('hidden'); box.innerHTML = ''; $('#browse').classList.remove('hidden'); };
-  const ai = vault.settings.apiKey ? {
+  const ai = aiAvailable(vault.settings) ? {
     // Text snippets come from the content script on the page (filtered and redacted there).
     preview: async () => {
       const r = await chrome.runtime.sendMessage({ type: 'ff-rule-text', token });
       if (!r?.ok) throw new Error(r?.error || 'Could not read the page text.');
       return r;
     },
+    dest: aiMode(vault.settings) === 'service' ? "Form Filler's AI server (which passes them to Gemini and keeps nothing)" : 'Gemini (your own key)',
     run: async (prev) => {
-      const r = await extractUploadRules(vault.settings.apiKey, vault.settings.model, prev);
-      if (lastModelUsed && lastModelUsed !== vault.settings.model) {
-        r.notes = `${r.notes ? r.notes.replace(/[.\s]+$/, '') + '. ' : ''}(${vault.settings.model} was busy, so ${lastModelUsed} answered)`;
+      const r = await extractUploadRules(vault.settings, prev);
+      const m = aiMode(vault.settings) === 'own' ? (vault.settings.model || DEFAULT_MODEL) : DEFAULT_MODEL;
+      if (lastModelUsed && lastModelUsed !== m) {
+        r.notes = `${r.notes ? r.notes.replace(/[.\s]+$/, '') + '. ' : ''}(${m} was busy, so ${lastModelUsed} answered)`;
       }
       return r;
     }

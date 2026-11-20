@@ -2,7 +2,7 @@ import { SCHEMA, newProfile, getPath, setPath } from '../lib/schema.js';
 import { loadVault, saveVault, lock, changePin, exportBackup, importBackup, deleteAll, isSetUp, DEFAULT_MODEL } from '../lib/vault.js';
 import { showLock, onLocked, addPinReveal, hideAllPins } from '../lib/lockui.js';
 import { addDocument, removeDocument, docBlob, formatSize, guessTags, fileExt } from '../lib/docs.js';
-import { testGemini } from '../lib/ai.js';
+import { testGemini, aiMode, quotaToday } from '../lib/ai.js';
 import { demoProfile } from '../lib/demo.js';
 import { openImageEditor } from '../lib/imgedit.js';
 
@@ -304,8 +304,16 @@ $('#doc-grid').addEventListener('click', async (e) => {
 function renderSettings() {
   $('#api-key').value = vault.settings.apiKey || '';
   $('#model').value = vault.settings.model || DEFAULT_MODEL;
+  const mode = aiMode(vault.settings);
+  document.querySelectorAll('input[name=ai-mode]').forEach((r) => { r.checked = r.value === mode; });
+  showModeFields();
+  quotaToday().then((left) => { $('#quota-note').textContent = left != null ? `${left} left today.` : ''; });
 }
 const msg = (el, text, cls = 'muted') => { el.className = 'small ' + cls; el.textContent = text; };
+
+const selectedMode = () => document.querySelector('input[name=ai-mode]:checked')?.value || 'service';
+function showModeFields() { $('#own-key').classList.toggle('hidden', selectedMode() !== 'own'); }
+document.querySelectorAll('input[name=ai-mode]').forEach((r) => r.addEventListener('change', showModeFields));
 
 $('#api-key-show').onclick = () => {
   const i = $('#api-key');
@@ -313,6 +321,7 @@ $('#api-key-show').onclick = () => {
   $('#api-key-show').textContent = i.type === 'password' ? 'Show' : 'Hide';
 };
 $('#settings-save').onclick = async () => {
+  vault.settings.aiMode = selectedMode();
   vault.settings.apiKey = $('#api-key').value.trim();
   vault.settings.model = $('#model').value.trim() || DEFAULT_MODEL;
   if (await persist()) msg($('#settings-msg'), '✓ Saved (encrypted)', 'ok');
@@ -320,8 +329,10 @@ $('#settings-save').onclick = async () => {
 $('#api-test').onclick = async () => {
   msg($('#settings-msg'), 'Testing…');
   try {
-    await testGemini($('#api-key').value.trim(), $('#model').value.trim() || DEFAULT_MODEL);
-    msg($('#settings-msg'), '✓ Gemini responded. Remember to Save.', 'ok');
+    const mode = selectedMode();
+    if (mode === 'off') return msg($('#settings-msg'), 'AI is off: nothing to test.');
+    await testGemini({ aiMode: mode, apiKey: $('#api-key').value.trim(), model: $('#model').value.trim() || DEFAULT_MODEL });
+    msg($('#settings-msg'), mode === 'service' ? "✓ Form Filler's AI service is working. Remember to Save." : '✓ Gemini responded. Remember to Save.', 'ok');
   } catch (e) {
     msg($('#settings-msg'), e.message, 'err');
   }

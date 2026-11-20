@@ -39,6 +39,7 @@ export function createLimiter({ perInstall = 10, perIp = 30, global = 1000, now 
       let refunded = false;
       return {
         ok: true,
+        limit: perInstall,
         remaining: perInstall - n - 1,
         refund() { // a failed call doesn't count
           if (refunded || takenDay !== day) return;

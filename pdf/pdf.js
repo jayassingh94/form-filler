@@ -6,7 +6,8 @@ import '../content/fillcore.js';
 import { loadVault, lock, isUnlocked } from '../lib/vault.js';
 import { showLock, onLocked } from '../lib/lockui.js';
 import { keyCatalog, resolveValue, resolveFirst, addressPartsFor } from '../lib/schema.js';
-import { mapFieldsWithGemini, detectFlatPage, lastModelUsed } from '../lib/ai.js';
+import { mapFieldsWithGemini, detectFlatPage, lastModelUsed, aiAvailable, aiMode } from '../lib/ai.js';
+import { DEFAULT_MODEL } from '../lib/gemini-core.js';
 import { addDocument } from '../lib/docs.js';
 import { toB64 } from '../lib/crypto.js';
 import * as G from '../lib/pdfgeom.js';
@@ -107,14 +108,16 @@ async function openPdf(name, bytes) {
   $('#step-detect').classList.remove('hidden');
   $('#step-detect').open = true;
   $('#sum-detect').textContent = '';
-  const hasKey = !!vault.settings.apiKey;
+  const hasKey = aiAvailable(vault.settings);
+  const viaServer = aiMode(vault.settings) === 'service';
+  $('#ai-dest').textContent = viaServer ? "Form Filler's AI server, which passes them to Google Gemini and keeps nothing" : 'Google Gemini (with your own key)';
   if (acroCount) {
     $('#detect-acro').classList.remove('hidden');
     $('#detect-flat').classList.add('hidden');
     $('#acro-count').textContent = acroCount;
     $('#acro-ai-note').textContent = hasKey
-      ? 'Field names and nearby labels (text only, no images, no values) go to Gemini for matching.'
-      : 'No Gemini key: using offline keyword matching. Nothing is sent.';
+      ? `Field names and nearby labels (text only, no images, no values) go to ${viaServer ? "Form Filler's AI server → Gemini" : 'Gemini'} for matching.`
+      : 'AI matching is off: using offline keyword matching. Nothing is sent.';
     $('#flatten-row').classList.remove('hidden');
   } else {
     $('#detect-acro').classList.add('hidden');
@@ -122,7 +125,7 @@ async function openPdf(name, bytes) {
     $('#page-count').textContent = pdf.numPages;
     $('#ai-block').classList.toggle('hidden', !hasKey);
     $('#no-key').classList.toggle('hidden', hasKey);
-    $('#no-key').textContent = hasKey ? '' : 'Add a Gemini API key in Settings to detect blanks on scanned forms. Without one, use offline detection (for digital PDFs) or add boxes yourself.';
+    $('#no-key').textContent = hasKey ? '' : 'AI matching is off in Settings. Use offline detection (for digital PDFs) or add boxes yourself; turn AI on to detect blanks on scanned forms.';
     $('#flatten-row').classList.add('hidden');
   }
   $('#step-edit').classList.remove('hidden');
@@ -399,10 +402,9 @@ function optionText(w, libOpt) {
 }
 
 async function mapFields(descs) {
-  const { apiKey, model } = vault.settings;
-  if (apiKey) {
+  if (aiAvailable(vault.settings)) {
     try {
-      return await mapFieldsWithGemini(apiKey, model, descs, keyCatalog(profile()));
+      return await mapFieldsWithGemini(vault.settings, descs, keyCatalog(profile()));
     } catch (err) {
       aiWarning = `AI matching failed (${err.message}), so offline matching was used.`;
     }
@@ -491,14 +493,13 @@ $('#ai-consent').onchange = (e) => { $('#run-ai').disabled = !e.target.checked; 
 $('#run-ai').onclick = () => runStep(detectWithAI);
 
 async function detectWithAI() {
-  const { apiKey, model } = vault.settings;
-  if (!apiKey) throw new Error('Add a Gemini API key in Settings first.');
+  if (!aiAvailable(vault.settings)) throw new Error('AI matching is off in Settings.');
   const catalog = keyCatalog(profile());
   items = items.filter((i) => i.edited); // keep boxes you placed by hand
   let skipped = 0, noRoom = 0;
   for (const p of pages) {
     progress(`Reading page ${p.num} of ${pages.length} with AI…`);
-    const raw = await detectFlatPage(apiKey, model, await pageImage(p.num), 'image/jpeg', catalog);
+    const raw = await detectFlatPage(vault.settings, await pageImage(p.num), 'image/jpeg', catalog);
     const text = await pageText(p);
     const zone = officialZone(text);
     const lines = [...G.underlineRuns(text), ...(await printedRules(p))];
@@ -674,10 +675,10 @@ async function runStep(fn) {
   progress('Working…');
   try {
     let text = await fn();
-    const m = vault.settings.model;
+    const m = aiMode(vault.settings) === 'own' ? (vault.settings.model || DEFAULT_MODEL) : DEFAULT_MODEL;
     if (aiWarning) { progress(`${text} ${aiWarning}`, 'warn'); }
     else {
-      if (vault.settings.apiKey && lastModelUsed && lastModelUsed !== m && fn !== detectOffline) text += ` (${m} was busy, so ${lastModelUsed} answered.)`;
+      if (aiAvailable(vault.settings) && lastModelUsed && lastModelUsed !== m && fn !== detectOffline) text += ` (${m} was busy, so ${lastModelUsed} answered.)`;
       progress(text, 'ok');
     }
     // done: fold steps 1–2 so the field list comes up

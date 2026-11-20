@@ -28,8 +28,8 @@
   <div id="main" class="hidden">
     <label><span>Fill as</span><select id="profile"></select></label>
     <label class="row small" style="margin-top:8px"><input type="checkbox" id="overwrite"> Replace values already in the form</label>
-    <div id="ai-note" class="notice small hidden" style="margin-top:8px">No Gemini API key set: using basic offline keyword matching.
-      <button class="link small" id="go-settings">Add key</button></div>
+    <div id="ai-note" class="small muted hidden" style="margin-top:8px"><span id="ai-note-text"></span>
+      <button class="link small" id="go-settings">Settings</button></div>
     <button class="primary" id="fill">Fill this form</button>
     <div id="result"></div>
     <div class="links">

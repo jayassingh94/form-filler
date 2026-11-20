@@ -110,7 +110,7 @@ export function createServer(opts = {}) {
 
       try {
         const out = await callGemini({ apiKey, model, body: buildBody(task, payload), fetchImpl, base, fallbackModel, sleep: opts.sleep });
-        return done(200, { text: out.text, model: out.model, remaining: ticket?.remaining ?? null });
+        return done(200, { text: out.text, model: out.model, remaining: ticket?.remaining ?? null, limit: ticket?.limit ?? null });
       } catch (e) {
         ticket?.refund(); // don't count failed calls against anyone
         const busy = e.status === 503;

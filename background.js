@@ -2,7 +2,8 @@
 import './content/fillcore.js';
 import { loadVault, checkAutoLock } from './lib/vault.js';
 import { keyCatalog, resolveValue, resolveFirst } from './lib/schema.js';
-import { mapFieldsWithGemini, lastModelUsed } from './lib/ai.js';
+import { mapFieldsWithGemini, lastModelUsed, lastRemaining, lastLimit, aiAvailable, aiMode } from './lib/ai.js';
+import { DEFAULT_MODEL } from './lib/gemini-core.js';
 import { getDocBytes } from './lib/vault.js';
 import { addDocument } from './lib/docs.js';
 import { toB64, fromB64 } from './lib/crypto.js';
@@ -90,10 +91,10 @@ async function handleFill({ tabId, profileId, overwrite }) {
   let mapping = new Map();
   let mode = 'offline';
   let aiError = null;
-  const { apiKey, model } = vault.settings;
-  if (apiKey) {
+  const model = aiMode(vault.settings) === 'own' ? (vault.settings.model || DEFAULT_MODEL) : DEFAULT_MODEL;
+  if (aiAvailable(vault.settings)) {
     try {
-      mapping = await mapFieldsWithGemini(apiKey, model, candidates.map((x) => x.d), keyCatalog(profile));
+      mapping = await mapFieldsWithGemini(vault.settings, candidates.map((x) => x.d), keyCatalog(profile));
       mode = 'ai';
     } catch (e) {
       aiError = e.message;
@@ -138,5 +139,5 @@ async function handleFill({ tabId, profileId, overwrite }) {
     if (res?.result) for (const k of Object.keys(totals)) totals[k] += res.result[k] || 0;
   }
   const fallbackModel = mode === 'ai' && lastModelUsed && lastModelUsed !== model ? lastModelUsed : null;
-  return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel };
+  return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel, aiLimit: /daily limit|today's/.test(aiError || ''), remaining: aiMode(vault.settings) === 'service' ? lastRemaining : null, limit: lastLimit };
 }
