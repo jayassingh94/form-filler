@@ -60,7 +60,7 @@ popup ──"Fill"──► background worker ──inject──► page (conten
 
 | File | Role |
 |---|---|
-| `manifest.json` | MV3 manifest. No host permissions at install except the Gemini API; sites are requested when you click Fill |
+| `manifest.json` | MV3 manifest. No host permissions at install except the Gemini API. `activeTab` lets the popup read the current tab's address; site access is requested when you click Fill |
 | `background.js` | Runs Fill, relays locker files, runs the auto-lock alarm |
 | `content/content.js` | Scans, fills and highlights fields; adds locker buttons (injected only when you click Fill) |
 | `content/fillcore.js` | Pure logic: sensitive-field rules, date formats, option matching, offline matcher |
@@ -69,6 +69,7 @@ popup ──"Fill"──► background worker ──inject──► page (conten
 | `lib/ai.js` | Gemini request (labels only) |
 | `options/` | My Profile, Document Locker, Settings, Backup & data |
 | `popup/` | Profile picker and the Fill button |
+| `lib/site.js` | Tab URL → site permission pattern (ports ignored, e.g. `http://localhost/*`) |
 | `picker/` | "Pick from locker" window (extension iframe the page can't read) with resize |
 | `privacy.html` | Privacy policy |
 | `test/sample-form.html` | Sample form for manual testing |

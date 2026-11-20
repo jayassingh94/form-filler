@@ -3,7 +3,7 @@
   "name": "Form Filler",
   "version": "1.0.0",
   "description": "Fill web forms from your locally stored, encrypted profiles. AI sees only field labels, never your data.",
-  "permissions": ["storage", "scripting", "alarms", "unlimitedStorage"],
+  "permissions": ["storage", "scripting", "alarms", "unlimitedStorage", "activeTab"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*", "file:///*"],
   "background": {

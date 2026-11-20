@@ -1,5 +1,6 @@
 import { loadVault, lock, isSetUp } from '../lib/vault.js';
 import { showLock, onLocked } from '../lib/lockui.js';
+import { sitePattern } from '../lib/site.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -37,22 +38,25 @@ async function boot() {
 
 // Work out the site permission pattern up front so the click handler can request it synchronously
 // (Chrome only shows the permission prompt during a user gesture).
+// tab.url is only visible thanks to the activeTab permission, which Chrome grants when you click the
+// toolbar icon. It gives no access to the page itself; that is requested below when you click Fill.
 async function readTab() {
   [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  try {
-    const u = new URL(tab.url);
-    if (u.protocol === 'http:' || u.protocol === 'https:') originPattern = `${u.protocol}//${u.hostname}/*`;
-    else if (u.protocol === 'file:') originPattern = 'file:///*';
-  } catch { /* no URL access */ }
+  const site = sitePattern(tab?.url || tab?.pendingUrl);
+  originPattern = site.pattern || null;
   if (!originPattern) {
     $('#fill').disabled = true;
-    $('#result').innerHTML = '<div class="notice small">Form Filler can only fill normal web pages (http/https).</div>';
+    $('#result').innerHTML = site.reason === 'restricted'
+      ? '<div class="notice small">Chrome doesn\'t let extensions run on this page (browser settings, extension pages, the Web Store). Open the web form you want to fill.</div>'
+      : '<div class="notice small">Couldn\'t read this tab\'s address. Reload the page, then click the Form Filler icon again.</div>';
   }
 }
+const tabReady = readTab();
 
-$('#fill').onclick = () => {
+$('#fill').onclick = async () => {
+  if (!originPattern) await tabReady;
   if (!originPattern) return;
-  // Must be the first call in the gesture handler.
+  // Chrome shows the site-access prompt only during a user gesture, so request it right away.
   chrome.permissions.request({ origins: [originPattern] }).then(async (granted) => {
     if (!granted) {
       showResult(`<div class="err small">Permission for this site was not granted, so nothing was filled.</div>`);
@@ -101,5 +105,4 @@ function renderResult(r) {
   showResult(`<div class="card" style="padding:10px">${lines.join('')}</div>`);
 }
 
-readTab();
 boot();
