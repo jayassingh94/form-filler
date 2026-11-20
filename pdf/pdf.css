@@ -108,6 +108,8 @@ button.wide, .wide { width: 100%; }
 .ov.sel { border-color: var(--sel); box-shadow: 0 0 0 2px var(--sel-soft); z-index: 5; }
 .pages.hl .ov.y { background: var(--warn-tint); }
 .ov.spare, .ov.hide { background: transparent !important; }
+.pages.hl .ov.official { background: rgba(148, 163, 184, .16); } /* officer's part: left blank, shown grey */
+.fc.official { opacity: .75; }
 .ov.spare:not(:hover):not(.sel) { border-color: transparent; }
 .ov input, .ov textarea {
   all: unset; box-sizing: border-box; width: 100%; height: 100%; padding: 0 1px;

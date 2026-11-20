@@ -85,6 +85,11 @@ Notes:
   - Values that only fit in smaller text are marked yellow.
   - "Post applied for / आवेदित पद" is never filled with your name; add a custom field *Post applied for* if you want it filled.
   - `test/sample-bilingual-form.pdf` is a sample of this layout.
+- **Officer sections** ("Certifying Officer", "Attested by", "For office use only", and the "Designation" / "Phone"
+  rows that follow them) are never filled from your profile. They are shown grey and left blank.
+- **Underlines in the text** ("Full Name : ______"): values sit exactly on them, and continuation lines of an address are
+  used in order. Gemini's boxes are snapped onto the printed line of their own label. `test/sample-identity-certificate.pdf`
+  is a regression sample.
 - **Hindi and Devanagari** (Marathi, Nepali, Sanskrit…) work, including mixed text like "आशा (Asha)". It is shaped properly
   (conjuncts, ि, reph, ु/ँ) with the bundled Noto Sans Devanagari font and drawn as outlines, so it looks right in every
   PDF viewer. Hindi drawn onto flat forms can't be selected or searched as text; in fillable fields the real Unicode value

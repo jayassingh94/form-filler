@@ -222,7 +222,7 @@ function groupAddresses() {
     const k = it.keys?.find(isAddressKey) || (isAddressKey(it.key) ? it.key : null);
     const prev = cur?.last;
     const below = prev && it.page === prev.page && it.box.y > prev.box.y + prev.box.h * 0.5 &&
-      it.box.y < prev.box.y + prev.box.h * 3.5 && it.box.x < prev.box.x + prev.box.w && it.box.x + it.box.w > prev.box.x;
+      it.box.y < prev.box.y + Math.max(prev.box.h * 3.5, 0.075) && it.box.x < prev.box.x + prev.box.w && it.box.x + it.box.w > prev.box.x;
     const continuation = below && (k === cur.key || (!k && (!it.label || /contd|continued|line ?\d|^\W*$/i.test(it.label) || C.norm(it.label) === C.norm(prev.label))));
     if (continuation) {
       it.addrGroup = cur.id; it.key = cur.key; it.keys = [cur.key];
@@ -415,10 +415,13 @@ async function mapFields(descs) {
   return m;
 }
 
-/** Printed text of a page (cached), used to keep values off it. */
+/**
+ * Printed text of a page (cached). Returns all text pieces (to find labels and underlines);
+ * p.text keeps only the "ink" values must not cover (underscore runs are where you write).
+ */
 async function pageText(p) {
-  p.text ??= await textItems(p);
-  return p.text;
+  if (!p.raw) { p.raw = await textItems(p); p.text = G.inkItems(p.raw); }
+  return p.raw;
 }
 
 /**
@@ -497,17 +500,23 @@ async function detectWithAI() {
     progress(`Reading page ${p.num} of ${pages.length} with AI…`);
     const raw = await detectFlatPage(apiKey, model, await pageImage(p.num), 'image/jpeg', catalog);
     const text = await pageText(p);
-    for (const r of raw) {
+    const zone = officialZone(text);
+    const lines = [...G.underlineRuns(text), ...(await printedRules(p))];
+    const sorted = [...raw].map((r) => ({ r, box: G.fromBox2d(r.box_2d) })).filter((x) => x.box).sort((a, b) => a.box.y - b.box.y);
+    for (const { r, box: b0 } of sorted) {
+      let box = b0;
       if (r.kind === 'skip') continue;
       if (C.isSensitive({ label: r.label })) { skipped++; continue; }
-      let box = G.fromBox2d(r.box_2d);
-      if (!box) continue;
-      // Never write over printed text: move text boxes that cover a label into the free space after it.
-      if (r.kind !== 'checkbox' && text.length) {
-        const fixed = G.repairBox(box, text);
-        if (!fixed) { noRoom++; continue; }
-        box = fixed;
+      if (r.kind !== 'checkbox') {
+        // sit on the printed line the box belongs to, and never over printed text
+        box = G.snapByLabel(box, r.label, p.text, lines, C.norm);
+        if (p.text.length) {
+          const fixed = G.repairBox(box, p.text);
+          if (!fixed) { noRoom++; continue; }
+          box = fixed;
+        }
       }
+      if (zone.test({ label: r.label, box })) { items.push(officialItem(p.num, box, r.label)); continue; }
       const keys = r.kind === 'checkbox'
         ? [...new Set([r.key, C.labelKey(r.label), C.heuristicKey({ label: r.label })].filter(Boolean))]
         : candidateKeys(r.label, r.key);
@@ -543,13 +552,22 @@ async function detectOffline() {
     // labels without a colon count when we recognise them ("Full Name", "Date of Birth", "Mobile No.")
     const known = (label) => label.length <= 60 && !!(customKeyFor(label) || C.labelKey(label) || C.heuristicKey({ label }));
     const upper = /capital|block letters/i.test(text.map((t) => t.text).join(' '));
+    const zone = officialZone(text);
     for (const b of G.blanksFromTextLayer(text, known)) {
       if (C.isSensitive({ label: b.label })) { skipped++; continue; }
-      if (/signature|photo|thumb|office use/i.test(b.label)) continue;
+      if (zone.test(b)) { items.push(officialItem(p.num, b.box, b.label)); continue; }
+      // signature / photo / thumb boxes stay empty, unless the label clearly asks for your details
+      // ("…the details and photograph of Shri ____" is your name)
+      if (/signature|photo|thumb|office use/i.test(b.label) && !candidateKeys(b.label, null).length) continue;
+      if (b.kind === 'check') { // "Sex : Male : Female :"
+        const keys = [...new Set([C.labelKey(b.label), C.heuristicKey({ label: b.label })].filter(Boolean))];
+        items.push(newItem({ page: p.num, box: b.box, kind: 'check', label: b.label, option: b.option, key: keys[0] || null, keys, conf: 'high', group: `p${p.num}:${keys[0] || b.label}` }));
+        continue;
+      }
       const keys = candidateKeys(b.label, null);
       const key = keys[0] || null;
-      // put the value on the printed line next to the label, if there is one
-      const rule = ruleForLabel(b.box, rules, used);
+      // underscores mark the exact spot; otherwise use a drawn line next to the label, if there is one
+      const rule = b.underline ? null : ruleForLabel(b.box, rules, used);
       // without a colon or a printed line, only trust precise labels ("Full Name"), not keyword guesses
       if (!b.colon && !rule && !customKeyFor(b.label) && !C.labelKey(b.label)) continue;
       const lines = [];
@@ -566,11 +584,37 @@ async function detectOffline() {
     }
   }
   if (!found) throw new Error('No text labels found. This looks like a scanned form: use AI detection, or add boxes yourself with "+ Text" / "+ Tick".');
+  resolveCheckGroups();
   groupAddresses();
   resolveAddressGroups();
   fitAll();
   renderAll();
-  return summary(skipped) + ' Tick boxes are not detected offline; add them with "+ Tick".';
+  const ticks = items.some((i) => i.kind === 'check');
+  return summary(skipped) + (ticks ? '' : ' Tick boxes are not detected offline; add them with "+ Tick".');
+}
+
+/**
+ * Officer-only parts of a page: an officer/authority label ("Name of Certifying Officer"), the generic
+ * labels right after it ("Designation", "Phone No."), and everything under a "For office use only" heading.
+ * Call test(blank) in top-to-bottom order.
+ */
+function officialZone(text) {
+  const head = text.filter((t) => C.isOfficialHeading(t.text)).map((t) => t.y).sort((a, b) => a - b)[0];
+  let inZone = false;
+  return {
+    test(b) {
+      if (head != null && b.box.y > head) return true;
+      if (C.isOfficialLabel(b.label)) { inZone = true; return true; }
+      if (inZone && C.isOfficialFollower(b.label)) return true;
+      inZone = false;
+      return false;
+    }
+  };
+}
+
+/** A blank that belongs to the officer: shown grey, never filled from your profile. */
+function officialItem(page, box, label) {
+  return newItem({ page, box, label, key: null, keys: [], official: true, sure: true, note: 'For the officer: left blank' });
 }
 
 /** Horizontal printed lines on a page, as normalised {x0, x1, y} (y = the line itself). */
@@ -617,7 +661,7 @@ function ruleBox(r, p) {
 
 function summary(skipped) {
   const filled = items.filter((i) => (i.kind === 'text' ? i.text : i.checked) && i.sure).length;
-  const review = items.filter((i) => i.kind === 'text' && !i.spare && (!i.text || !i.sure)).length;
+  const review = items.filter((i) => i.kind === 'text' && !i.spare && !i.official && (!i.text || !i.sure)).length;
   return `${filled} filled · ${review} to check${skipped ? ` · 🛡️ ${skipped} sensitive field(s) skipped` : ''}.`;
 }
 
@@ -673,7 +717,7 @@ function renderItem(it) {
     p.el.appendChild(el);
     attachDrag(el, it);
   }
-  el.className = `ov ${it.kind === 'check' ? 'check' : 'text'} ${it.spare ? 'spare' : isGreen(it) ? '' : 'y'} ${it.acro ? 'acro' : ''} ${selected === it.id ? 'sel' : ''}`;
+  el.className = `ov ${it.kind === 'check' ? 'check' : 'text'} ${it.official ? 'official' : it.spare ? 'spare' : isGreen(it) ? '' : 'y'} ${it.acro ? 'acro' : ''} ${selected === it.id ? 'sel' : ''}`;
   Object.assign(el.style, { left: it.box.x * 100 + '%', top: it.box.y * 100 + '%', width: it.box.w * 100 + '%', height: it.box.h * 100 + '%' });
   const onText = it.kind === 'text' && it.text && p.text && G.overlapsText(it.box, p.text);
   el.title = `${splitLabel(it.label).en}${onText ? ' ⚠ overlaps printed text' : it.note ? ` ⚠ ${it.note}` : ''}`;
@@ -833,6 +877,7 @@ function entries() {
 }
 
 function entryStatus(e) {
+  if (e.items.every((i) => i.official)) return 's';
   if (e.type === 'addr') return e.items.some((i) => i.text) && e.items.every((i) => i.spare || isGreen(i)) ? 'g' : 'y';
   if (e.type === 'checks') return e.items.some((i) => i.checked) && e.items.every((i) => i.sure) ? 'g' : 'y';
   return isGreen(e.items[0]) ? 'g' : 'y';
@@ -899,7 +944,7 @@ function renderList() {
     const sel = e.items.find((i) => i.id === selected);
     const note = e.items.map((i) => i.note).find(Boolean) ||
       (e.items.some((i) => i.kind === 'text' && i.text && pages[i.page - 1]?.text && G.overlapsText(i.box, pages[i.page - 1].text)) ? 'Overlaps printed text' : '');
-    html.push(`<div class="fc ${sel ? 'sel' : ''}" data-id="${it.id}" role="listitem">
+    html.push(`<div class="fc ${sel ? 'sel' : ''} ${e.items.every((i) => i.official) ? 'official' : ''}" data-id="${it.id}" role="listitem">
       <div class="fc-head" data-act="pick"><span class="dot ${entryStatus(e)}" aria-label="${entryStatus(e) === 'g' ? 'filled' : 'to check'}"></span>
         <div class="fc-label"><div class="en">${esc(en)}</div>${hi ? `<div class="hi" lang="hi">${esc(hi)}</div>` : ''}${note ? `<div class="note">⚠ ${esc(note)}</div>` : ''}</div></div>
       ${cardBody(e)}
@@ -1024,7 +1069,7 @@ function syncEditorText(it) {
 
 // ---------------- step summaries, collapsing ----------------
 function updateSummaries() {
-  const es = entries().filter((e) => !(e.type === 'one' && e.items[0].spare));
+  const es = entries().filter((e) => !(e.type === 'one' && (e.items[0].spare || e.items[0].official)));
   const filled = es.filter((e) => entryStatus(e) === 'g').length;
   $('#sum-edit').textContent = es.length ? `${filled} filled · ${es.length - filled} to check` : '';
   $('#sum-choose').textContent = file ? file.name : '';

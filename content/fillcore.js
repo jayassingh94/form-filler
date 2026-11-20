@@ -242,6 +242,20 @@
       .replace(/[\s:\-–_.]+$/, '').trim();
   }
 
+  // Officer / authority sections ("Certifying Officer", "For office use only"): never filled from your profile.
+  const OFFICIAL = /\b(officers?|authority|authorities|certifying|attesting|attested by|gazetted|competent|head of (the )?(office|department|institution)|tehsildar|magistrate|for office use|office use only|seal of (the )?office|verified by|countersign\w*|issuing (authority|officer)|registrar|controlling officer|forwarding officer)\b/;
+  function isOfficialLabel(label) { return OFFICIAL.test(normLabel(label)); }
+  /** Headings that start an officer-only part of a page. */
+  const OFFICIAL_HEADING = /for office use|office use only|to be filled (in )?by (the )?(office|officer|authority|department|head|employer)|certificate (by|from) (the )?(head|officer|employer|authority)|(endorsement|certification) by/i;
+  function isOfficialHeading(text) { return OFFICIAL_HEADING.test(String(text || '')); }
+  /** Generic labels that, right after an officer label, belong to the officer too ("Designation", "Phone No."). */
+  const OFFICIAL_GENERIC = /^(name|designation|post|rank|phone|telephone|tel|mobile|contact|e-?mail|signature|sign|date|place|seal|stamp|office|address|department|official|full name)\b/;
+  function isOfficialFollower(label) {
+    const n = normLabel(label);
+    if (/candidate|applicant|student|employee|your\b/.test(n)) return false; // the candidate's own field: zone ends
+    return !n || OFFICIAL_GENERIC.test(n);
+  }
+
   // "Name of the Post applied for / आवेदित पद का नाम" is the job, never your name.
   const POST_APPLIED = /\bpost\s*(applied|sought|for which)|\bapplied\s*for\b|\bname of (the )?post\b|\bposition\s*(applied|sought)|\bdesignation\s*applied|\bvacancy\b|आवेदित\s*पद|पद\s*का\s*नाम|पद\s*जिसके|आवेदन\s*किया\s*गया\s*पद/i;
   function isPostApplied(label) { return POST_APPLIED.test(String(label || '').replace(/[\u2018\u2019]/g, "'")); }
@@ -266,9 +280,13 @@
    * "Father’s Name", "S/o", "Address for Correspondence", "Permanent Address"…). Null if unsure.
    */
   function labelKey(label) {
-    if (isPostApplied(label)) return null;
+    if (isPostApplied(label) || isOfficialLabel(label)) return null;
     const n = translateHindi(normLabel(label));
     if (!n) return null;
+    // "…the details and photograph of Shri ____": the name goes after Shri / Smt / Kumari
+    if (/\b(shri|sri|smt|kumari|km|mr|mrs|ms)\.?$/.test(n)) return 'personal.fullName';
+    // "resident of (R/O) ____": the address
+    if (/\bresident of\b|\(?\br\s*\/\s*o\b\)?$/.test(n)) return 'permanentAddress.full';
     // "Correspondence address same as permanent" / "Same as above" is the tick box, not an address
     if (/\bsame as\b|\bsimilar to\b|\bcopy (from|of)\b/.test(n) && /permanent|above|address/.test(n)) return 'currentAddress.sameAsPermanent';
     const hasName = /\bnames?\b/.test(n);
@@ -375,6 +393,8 @@
 
   function heuristicKey(f) {
     if (isPostApplied(f.label) || (!f.label && isPostApplied(f.placeholder))) return null;
+    if (isOfficialLabel(f.label)) return null;
+    if (/^\(.*\)$/.test(String(f.label || '').trim())) return null; // "(State)": a note under another label
     const precise = labelKey(f.label) || (!f.label ? labelKey(f.placeholder) : null);
     if (precise) return precise;
     const shown = f.label && !/[a-z]/i.test(f.label) ? translateHindi(String(f.label).toLowerCase()) : f.label;
@@ -399,7 +419,7 @@
     if (/family income|annual income|income/.test(own)) return 'family.annualFamilyIncome';
     if (/same as permanent|same as above/.test(own)) return 'currentAddress.sameAsPermanent';
     if (/certificate/.test(ctx) && /\bdate\b/.test(own) && /categor|caste|obc|ews|\bsc\b|\bst\b/.test(ctx)) return 'category.certificateDate';
-    if (/working since|joining|date of appointment|employed since|\bfrom\b.*\bdate\b|\bdate\b.*\bfrom\b/.test(own)) return 'work.current.from';
+    if (/working since|joining|date of appointment|employed since|\bfrom\b.*\bdate\b|\bdate\b.*\bfrom\b/.test(own) && !/discharge|retire|relie|leaving|resign|\bservice\b/.test(own)) return 'work.current.from';
 
     const level = first(EDU, ctx);
     if (level && (/qualif|education|exam|board|universit|roll|passing|percent|marks|cgpa|school|college|subject|stream|division/.test(ctx))) {
@@ -443,17 +463,17 @@
       return `${prefix}.${addrField}`;
     }
     if (/^place$/.test(own.trim())) return 'currentAddress.city';
-    if (/experience/.test(own)) return /month/.test(own) ? 'experience.totalMonths' : 'experience.totalYears';
+    if (/experience/.test(own) && /year|total|month|duration|how many/.test(own)) return /month/.test(own) ? 'experience.totalMonths' : 'experience.totalYears';
     if (/employer|organi[sz]ation|company/.test(own)) return 'work.current.employer';
     if (/designation|post held/.test(own)) return 'work.current.designation';
-    if (/full ?name|^name$|candidate'?s? name|applicant'?s? name|your name|name of (the )?(candidate|applicant)|^name\b/.test(own)) return 'personal.fullName';
+    if (/full ?name|^name$|candidate'?s? name|applicant'?s? name|your name|name of (the )?(candidate|applicant)|^name\b/.test(own) && !NOT_PERSON.test(own) && !/issuing|branch/.test(own)) return 'personal.fullName';
     return null;
   }
 
   const api = {
     humanize, norm, isSensitive, detectDateFormat, formatDate, nativeDateValue,
     matchOption, isPlaceholderOption, toBool, parseUploadRequirements, heuristicKey, MONTHS,
-    normLabel, labelKey, normalizeKey, properCase, isPostApplied
+    normLabel, labelKey, normalizeKey, properCase, isPostApplied, isOfficialLabel, isOfficialHeading, isOfficialFollower
   };
   root.FFCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
