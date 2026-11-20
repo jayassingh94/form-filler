@@ -82,8 +82,13 @@ test('rejects bad requests', async () => {
     const r = await post(body);
     assert.equal(r.status, 400, why);
   }
-  const big = await fetch(`${base}/v1/ai`, { method: 'POST', body: 'x'.repeat(7 * 1024 * 1024) });
-  assert.equal(big.status, 413);
+  // an oversized upload is refused: either a 413 answer or the connection is cut while it is still sending
+  try {
+    const big = await fetch(`${base}/v1/ai`, { method: 'POST', body: 'x'.repeat(7 * 1024 * 1024) });
+    assert.equal(big.status, 413);
+  } catch (e) {
+    assert.match(String(e.cause?.code || e.cause?.message || e), /EPIPE|ECONNRESET|socket/i);
+  }
   assert.equal((await fetch(`${base}/v1/chat`, { method: 'POST', body: '{}' })).status, 404);
 });
 

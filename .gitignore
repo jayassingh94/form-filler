@@ -16,3 +16,6 @@ node_modules/
 *.zip
 *.crx
 *.pem
+
+# shareable example config
+!server/.env.example
