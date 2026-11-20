@@ -1,22 +1,56 @@
+# ---------------------------------------------------------------------------
 # Never commit personal data, backups or secrets
+# ---------------------------------------------------------------------------
+# environment / keys
+.env
+.env.*
+*.env
+!server/.env.example
+secrets*
+*secret*.json
+*credentials*
+*api-key*
+*apikey*
+*.pem
+*.key
+*.p12
+*.crx
+
+# Form Filler backups and exported data
 *.ffbackup
 *.ffbackup.json
 form-filler-backup*.json
-*.env
-.env*
-secrets*
-*api-key*
-*apikey*
+*-backup.json
+*-filled.pdf
+
+# local personal files (forms, documents, profiles you test with)
 my-documents/
 personal/
+private/
+local/
+real-forms/
+*.local.*
 
-# OS / tooling
-.DS_Store
-node_modules/
-*.zip
-*.crx
-*.pem
+# scratch / temporary work
+scratch/
+scratchpad/
+tmp/
+temp/
+*.tmp
+*.log
+*.bak
+*.orig
+*.swp
 
-# shareable example config
-!server/.env.example
+# build output and packages
 dist/
+*.zip
+node_modules/
+coverage/
+
+# editors / OS / tools
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
