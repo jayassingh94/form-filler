@@ -221,8 +221,116 @@ async function bilingual() {
   fs.writeFileSync(ROOT + 'tests/fixtures/bilingual-layout.json', JSON.stringify({ page: { w: PW, h: PH }, items }, null, 1));
 }
 
-await flat();
-await acro();
-await labels();
-await bilingual();
-console.log('wrote sample PDFs in test/ and layouts in tests/fixtures/');
+// A generated lookalike of a typical government "application form + identity certificate" (3 pages):
+// labels and underscore blanks as separate text pieces, "Sex : Male : Female :" with tick boxes, a category
+// table, a photo box drawn from thin bars, a fee/DD line, a declaration and an officer section.
+// Used as the regression sample for underscore forms (test/sample-identity-certificate.pdf).
+async function identity() {
+  const doc = await PDFDocument.create();
+  doc.setTitle('Application form and identity certificate (sample)');
+  doc.setAuthor('Form Filler test suite');
+  doc.setCreator('tests/make-sample-pdfs.mjs');
+  doc.setProducer('pdf-lib');
+  const PW = 612, PH = 792, FS = 10.5;
+  const f = await doc.embedFont(StandardFonts.Helvetica);
+  const fb = await doc.embedFont(StandardFonts.HelveticaBold);
+  const ink = rgb(0, 0, 0);
+  const U = f.widthOfTextAtSize('_', FS);
+  const us = (w) => '_'.repeat(Math.max(3, Math.round(w / U)));
+  const newPage = (n) => {
+    const page = doc.addPage([PW, PH]);
+    const t = (str, x, base, font = f, size = FS) => page.drawText(str, { x, y: PH - base, size, font, color: ink });
+    // boxes are drawn from thin filled bars, like the original form (their edges must not count as writing lines)
+    const bar = (x, top, w, h) => page.drawRectangle({ x, y: PH - top - h, width: w, height: h, color: ink });
+    const box = (x0, top, x1, bottom) => { bar(x0, top, x1 - x0, 0.8); bar(x0, bottom, x1 - x0, 0.8); bar(x0, top, 0.8, bottom - top); bar(x1, top, 0.8, bottom - top + 0.8); };
+    t(`Page ${n}`, 519, 743);
+    page.drawRectangle({ x: 106, y: PH - 730, width: 440, height: 2.5, color: rgb(0.45, 0.12, 0.12) });
+    return { page, t, bar, box };
+  };
+
+  // ---- page 1: application form
+  {
+    const { t, bar, box } = newPage(1);
+    t('APPLICATION FORM', 256, 54, fb, 14);
+    t('Post Applied for :' + us(130), 106, 83, f, 12);
+    box(430, 72, 540, 200); bar(430, 105, 110, 0.8);
+    for (const [s, y] of [['Affix recent passport', 87], ['size photograph', 100], ['Identity should be', 126], ['certified by an officer as', 139],
+      ['mentioned in the', 152], ['advertisement with', 165], ['designation / seal of', 178], ['office.', 191]]) t(s, 485 - f.widthOfTextAtSize(s, 9.5) / 2, y, f, 9.5);
+    const row = (label, base, w = 246) => { t(label, 106, base); t(': ' + us(w - 8), 275, base); };
+    row('1. Full Name', 246); row('2. Father’s Name', 267); row('3. Permanent Address', 289);
+    t(us(241), 281, 338); t(us(241), 281, 370);
+    t('4. Address for Correspondence /', 106, 392); t('Present Address', 116, 403); t(': ' + us(235), 275, 403);
+    t(us(235), 283, 424); t(us(235), 283, 446);
+    t('5. Date of Birth : ' + us(70), 106, 489);
+    t('6. Sex : Male :', 275, 489); box(350, 478, 392, 492);
+    t('Female :', 411, 489); box(456, 478, 498, 492);
+    t('7. Religion : ' + us(88), 106, 511); t('8.', 274, 511); t('Nationality : ' + us(180), 289, 511);
+    t('9. Domicile : ' + us(86), 106, 533); t('(State)', 117, 543); t('10.', 276, 533); t('Category:', 297, 533);
+    const cols = [347, 372, 397, 432, 475, 520];
+    for (let i = 0; i < cols.length - 1; i++) t(['SC', 'ST', 'OBC', 'EXSM', 'PH'][i], cols[i] + 5, 532);
+    box(347, 521, 520, 557); bar(347, 537, 173, 0.8); for (const x of cols.slice(1, -1)) bar(x, 521, 0.8, 36);
+    t('11. Ex-Serviceman', 106, 587);
+    for (const [label, base] of [['Date of Joining Service', 608], ['Date of Discharge from Service', 630]]) { t(label, 117, base); t(':', 275, base); t(us(157), 302, base); }
+    for (const [label, base] of [['12. E-mail id', 652], ['13. Telephone No. (With Std Code)', 673]]) { t(label, 106, base); t(':', 275, base); t(us(147), 309, base); }
+    t('14. Mobile No.', 106, 695); t('(If any)', 174, 695); t(':', 275, 695); t(us(147), 309, 695);
+  }
+  // ---- page 2: education, experience, fee, declaration
+  {
+    const { t, bar, box } = newPage(2);
+    t('15. Educational Qualification :', 106, 49);
+    box(106, 40, 546, 210); bar(106, 78, 440, 0.8);
+    for (const x of [200, 246, 340, 455]) bar(x, 40, 0.8, 170);
+    for (let y = 106; y < 210; y += 26) bar(106, y, 440, 0.6);
+    t('Qualification', 115, 60, f, 9.5); t('Subjects', 251, 60, f, 9.5); t('Principal', 208, 71, f, 9.5); t('Subsidiary', 289, 71, f, 9.5);
+    t('Percentage of', 366, 60, f, 9.5); t('marks', 384, 71, f, 9.5); t('Year of Passing', 464, 60, f, 9.5);
+    t('16. Experience :', 106, 236);
+    box(106, 255, 546, 350); bar(106, 286, 440, 0.8);
+    for (const x of [200, 285, 380, 460]) bar(x, 255, 0.8, 95);
+    t('Name of the', 120, 269, f, 9.5); t('Organisation', 117, 279, f, 9.5); t('Designation', 211, 269, f, 9.5); t('Nature of duties', 293, 269, f, 9.5);
+    t('Period', 405, 269, f, 9.5); t('From', 385, 280, f, 9.5); t('To', 437, 280, f, 9.5); t('Duration.', 492, 269, f, 9.5);
+    t('17. If employed in Govt. Dept. / PSU, whether applied through proper channel : Yes / No.', 106, 368);
+    t(`18. DD No. ${us(58)} Date.${us(92)} Name of Issuing Branch ${us(62)}`, 106, 390);
+    t(`Branch Code No. ${us(92)}.`, 119, 401);
+    const decl = ['Declaration : I hereby declare that all statements made in this application are true, complete and',
+      'correct to the best of my knowledge and belief. I understand that if any information is found to be untrue,',
+      'or if I do not meet the eligibility criteria, my candidature may be cancelled without notice. I have read',
+      'the advertisement and agree to abide by its rules and procedures for appointment to the post applied for.'];
+    decl.forEach((line, i) => t(line, 106, 426 + i * 16, f, 10));
+    t('Date :', 106, 572); t('Place :', 106, 604); t('(Signature of Applicant)', 377, 604);
+  }
+  // ---- page 3: identity certificate with officer section
+  {
+    const { t, box, bar } = newPage(3);
+    t('IDENTITY CERTIFICATE', 255, 63, fb, 14);
+    box(240, 70, 400, 200); bar(240, 104, 160, 0.8);
+    t('Affix photograph', 282, 98, f, 9.5);
+    for (const [s, y] of [['Seal of office & Signature of the', 113], ['officer attesting this certificate', 126], ['should appear on the', 139], ['Photograph.', 152]]) t(s, 320 - f.widthOfTextAtSize(s, 9.5) / 2, y, f, 9.5);
+    t('This is to certify that the details and photograph of Shri ' + us(140), 106, 219);
+    t('S/o.' + us(268) + ' and resident of (R/O)', 106, 239);
+    t(us(427), 106, 258);
+    t('who has applied for the post of ' + us(260) + ' is', 106, 278);
+    t('verified and certified as correct and genuine.', 106, 297);
+    t('PERMANENT ADDRESS :', 106, 330, fb);
+    for (const y of [343, 369, 395]) t(us(364), 140, y);
+    t('PRESENT ADDRESS :', 106, 421, fb);
+    for (const y of [434, 459, 485]) t(us(358), 140, y);
+    for (const [label, base, colon] of [['Signature of the Candidate', 511, true], ['Signature of the Certifying Officer:', 537, false],
+      ['Name of Certifying Officer', 563, true], ['Phone No. of Certifying Officer', 589, true], ['Designation', 628, true]]) {
+      t(label, 106, base); if (colon) t(':', 275, base); t(us(188), 309, base);
+    }
+    t('(Seal of Office )', 106, 641);
+    const note = ['[Note : Identity of the candidate should be certified by an officer not below the rank of Tehsildar /',
+      'Sub-Divisional Officer of the candidate’s domicile or native place, or the Principal of the school / college',
+      'from where the candidate passed Class 10, Intermediate, Graduation or Diploma, with name, designation and seal.]'];
+    note.forEach((line, i) => t(line, 106, 680 + i * 13, fb, 9));
+  }
+  fs.writeFileSync(ROOT + 'test/sample-identity-certificate.pdf', await doc.save({ useObjectStreams: false }));
+}
+
+const only = process.argv[2];
+if (!only || only === 'flat') await flat();
+if (!only || only === 'acro') await acro();
+if (!only || only === 'labels') await labels();
+if (!only || only === 'bilingual') await bilingual();
+if (!only || only === 'identity') await identity();
+console.log(`wrote ${only ? only + ' sample' : 'sample PDFs in test/ and layouts in tests/fixtures/'}`);
