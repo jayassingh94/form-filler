@@ -1,0 +1,30 @@
+# Render blueprint for the Form Filler AI server (free plan).
+# Deploy: Render dashboard → New → Blueprint → pick this repo. Then set GEMINI_API_KEY in the service's
+# Environment tab (it is never stored in the repo). See store/PUBLISHING.md for the full steps.
+services:
+  - type: web
+    name: form-filler-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: node --version
+    startCommand: node server/server.mjs
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: GEMINI_API_KEY
+        sync: false            # enter it in the dashboard
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-3.6-flash
+      - key: DAILY_LIMIT_PER_INSTALL
+        value: "10"
+      - key: DAILY_LIMIT_PER_IP
+        value: "30"
+      - key: GLOBAL_DAILY_CAP
+        value: "1000"
+      - key: ALLOWED_ORIGINS   # after publishing: chrome-extension://<your extension id>
+        value: ""
