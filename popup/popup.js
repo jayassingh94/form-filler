@@ -14,6 +14,7 @@ const openOptions = (hash) => {
 };
 $('#open-profile').onclick = () => openOptions('profiles');
 $('#open-docs').onclick = () => openOptions('docs');
+$('#open-pdf').onclick = () => { chrome.tabs.create({ url: chrome.runtime.getURL('pdf/pdf.html') }); window.close(); };
 $('#open-settings').onclick = $('#go-settings').onclick = () => openOptions('settings');
 $('#lock-now').onclick = () => lock();
 onLocked(() => boot());

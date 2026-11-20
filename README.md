@@ -5,6 +5,10 @@ A Chrome extension (Manifest V3) that fills web forms from encrypted profiles st
 - **My Profile**: personal, family, permanent and current address, contact, education (Class 10, Class 12, diploma, graduation, post-graduation, PhD, other), category, work experience and custom fields. You can keep several profiles (you, your spouse, and so on).
 - **Fill this form**: reads field labels, placeholders, names and dropdown/radio options. Gemini matches them to your profile *keys*, and your values are then filled in **locally**. Handles text boxes, dropdowns, radio buttons, checkboxes, date formats (DD/MM/YYYY, MM-DD-YYYY, DD-Mon-YYYY, native date pickers, separate day/month/year boxes) and dropdowns that load after another one changes. Fields it is sure about turn **green**; fields that are unsure or empty turn **yellow**.
 - **Document Locker**: stores your photo, signature, marksheets and certificates encrypted, with names and tags. A **📎 Pick from locker** button appears next to every upload field. The picker shows file size and dimensions, reads the form's KB and pixel limits, and can resize or compress images to fit.
+- **Fill a PDF**: open a PDF application form in the extension.
+  - **Fillable PDF:** if it has real form fields, they are filled directly and stay editable.
+  - **Flat or scanned PDF:** Gemini looks at the page images and finds each label with its blank line, character boxes or tick boxes (Sex, Category…). Your values are then written onto the PDF **locally**.
+  - **Before you download:** a preview lets you drag, resize and edit any box, or add text and ticks.
 - **Privacy**: AES-256-GCM encryption with a key derived from your PIN, auto-lock after 5 minutes, only labels are sent to the AI, password/card/CVV/bank/OTP/captcha fields are never filled, forms are never submitted, site access is asked for per site, plus backup/restore, "Delete all data" and no tracking. See [privacy.html](privacy.html).
 
 ## Install (Load unpacked)
@@ -39,6 +43,22 @@ After pulling new code, click the ↻ reload icon on the Form Filler card in `ch
 6. Next to **Recent Photograph**, click **📎 Pick from locker**. The picker shows "20–50 KB · 200×230 px" and warns that your photo doesn't fit. Click **Resize…**, then **Preview**, then **Attach resized**, and the field shows `…_200x230.jpg`.
 7. Click **🔒 Lock** in the popup and try filling again: it asks for your PIN. Leaving it idle for 5 minutes also locks it.
 
+## Try "Fill a PDF"
+
+1. Open the Form Filler popup and click **Fill a PDF** (or use the link at the top of the settings page).
+2. Choose a profile, click **Open a PDF form…** and pick one of these:
+   - `test/sample-acroform.pdf`: a form with real fields. Click **Fill the form fields**.
+   - `test/sample-flat-form.pdf`: a flat form with lines, letter boxes and tick boxes. With a Gemini key, tick
+     *I understand…* and click **Detect blanks with AI**. Without one, click **Detect offline** (tick boxes then need **+ Tick**).
+   - `test/sample-scanned-form.pdf`: the same form as an image only (like a scan). This needs AI detection or manual boxes.
+3. Check the boxes: green means filled, yellow means check it or fill it yourself. Drag a box by its ⠿ handle, resize it from the corner,
+   click to edit its text, change which profile value it uses, set letter boxes or capitals, or add **+ Text** / **+ Tick**.
+4. Click **Download filled PDF** (or **Save to locker**). Check it before submitting.
+
+Notes: text is written in Helvetica, so Hindi or other non-Latin text can't be written onto PDFs yet (you'll be told
+which boxes were skipped). AI box positions on real scans won't always be exact, so use the preview to adjust them.
+To regenerate the sample PDFs, run `node tests/make-sample-pdfs.mjs`.
+
 ## Automated tests
 
 ```
@@ -72,7 +92,11 @@ popup ──"Fill"──► background worker ──inject──► page (conten
 | `lib/site.js` | Tab URL → site permission pattern (ports ignored, e.g. `http://localhost/*`) |
 | `picker/` | "Pick from locker" window (extension iframe the page can't read) with resize |
 | `privacy.html` | Privacy policy |
+| `pdf/` | Fill a PDF page: field detection, preview editor, writing the PDF |
+| `lib/pdfgeom.js` | Box maths, text layout (letter boxes), tick choice, offline blank finder |
+| `vendor/` | pdf-lib 1.17.1 (MIT) and pdf.js 4.10.38 (Apache-2.0), bundled because extensions can't load remote code |
 | `test/sample-form.html` | Sample form for manual testing |
+| `test/sample-*.pdf` | Sample fillable, flat and scanned PDF forms |
 
 ## Never commit personal data
 

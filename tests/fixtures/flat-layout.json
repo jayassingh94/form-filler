@@ -1,0 +1,467 @@
+{
+ "page": {
+  "w": 595,
+  "h": 842
+ },
+ "items": [
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Photograph",
+   "kind": "skip",
+   "box_2d": [
+    97,
+    790,
+    240,
+    941
+   ],
+   "key": null
+  },
+  {
+   "confidence": "high",
+   "cells": 20,
+   "uppercase": true,
+   "label": "Name of Candidate",
+   "kind": "text",
+   "box_2d": [
+    102,
+    286,
+    121,
+    756
+   ],
+   "key": "personal.fullName"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Father's Name",
+   "kind": "text",
+   "box_2d": [
+    138,
+    286,
+    154,
+    765
+   ],
+   "key": "family.fatherName"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Mother's Name",
+   "kind": "text",
+   "box_2d": [
+    166,
+    286,
+    183,
+    765
+   ],
+   "key": "family.motherName"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Date of Birth (DD/MM/YYYY)",
+   "kind": "text",
+   "box_2d": [
+    195,
+    319,
+    211,
+    555
+   ],
+   "key": "personal.dob",
+   "dateFormat": "DD/MM/YYYY"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Sex",
+   "kind": "checkbox",
+   "option": "Male",
+   "box_2d": [
+    230,
+    252,
+    242,
+    269
+   ],
+   "key": "personal.gender"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Sex",
+   "kind": "checkbox",
+   "option": "Female",
+   "box_2d": [
+    230,
+    356,
+    242,
+    373
+   ],
+   "key": "personal.gender"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Sex",
+   "kind": "checkbox",
+   "option": "Transgender",
+   "box_2d": [
+    230,
+    479,
+    242,
+    495
+   ],
+   "key": "personal.gender"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Category",
+   "kind": "checkbox",
+   "option": "GEN",
+   "box_2d": [
+    259,
+    252,
+    271,
+    269
+   ],
+   "key": "category.category"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Category",
+   "kind": "checkbox",
+   "option": "OBC",
+   "box_2d": [
+    259,
+    356,
+    271,
+    373
+   ],
+   "key": "category.category"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Category",
+   "kind": "checkbox",
+   "option": "SC",
+   "box_2d": [
+    259,
+    459,
+    271,
+    476
+   ],
+   "key": "category.category"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Category",
+   "kind": "checkbox",
+   "option": "ST",
+   "box_2d": [
+    259,
+    550,
+    271,
+    567
+   ],
+   "key": "category.category"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Category",
+   "kind": "checkbox",
+   "option": "EWS",
+   "box_2d": [
+    259,
+    639,
+    271,
+    655
+   ],
+   "key": "category.category"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Marital Status",
+   "kind": "checkbox",
+   "option": "Unmarried",
+   "box_2d": [
+    287,
+    252,
+    299,
+    269
+   ],
+   "key": "personal.maritalStatus"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Marital Status",
+   "kind": "checkbox",
+   "option": "Married",
+   "box_2d": [
+    287,
+    398,
+    299,
+    415
+   ],
+   "key": "personal.maritalStatus"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Mobile No.",
+   "kind": "text",
+   "box_2d": [
+    311,
+    286,
+    328,
+    555
+   ],
+   "key": "contact.mobile"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "E-mail",
+   "kind": "text",
+   "box_2d": [
+    340,
+    286,
+    356,
+    765
+   ],
+   "key": "contact.email"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Permanent Address",
+   "kind": "text",
+   "box_2d": [
+    368,
+    286,
+    385,
+    941
+   ],
+   "key": "permanentAddress.full"
+  },
+  {
+   "confidence": "high",
+   "cells": 6,
+   "uppercase": true,
+   "label": "PIN Code",
+   "kind": "text",
+   "box_2d": [
+    420,
+    202,
+    439,
+    343
+   ],
+   "key": "permanentAddress.pincode"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "State",
+   "kind": "text",
+   "box_2d": [
+    423,
+    462,
+    439,
+    765
+   ],
+   "key": "permanentAddress.state"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "10th - Board / University",
+   "kind": "text",
+   "box_2d": [
+    506,
+    255,
+    525,
+    551
+   ],
+   "key": "education.class10.board"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "10th - Year of Passing",
+   "kind": "text",
+   "box_2d": [
+    506,
+    558,
+    525,
+    736
+   ],
+   "key": "education.class10.year"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "10th - Percentage",
+   "kind": "text",
+   "box_2d": [
+    506,
+    743,
+    525,
+    938
+   ],
+   "key": "education.class10.percentage"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "12th - Board / University",
+   "kind": "text",
+   "box_2d": [
+    530,
+    255,
+    549,
+    551
+   ],
+   "key": "education.class12.board"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "12th - Year of Passing",
+   "kind": "text",
+   "box_2d": [
+    530,
+    558,
+    549,
+    736
+   ],
+   "key": "education.class12.year"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "12th - Percentage",
+   "kind": "text",
+   "box_2d": [
+    530,
+    743,
+    549,
+    938
+   ],
+   "key": "education.class12.percentage"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "Graduation - Board / University",
+   "kind": "text",
+   "box_2d": [
+    553,
+    255,
+    572,
+    551
+   ],
+   "key": "education.graduation.board"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "Graduation - Year of Passing",
+   "kind": "text",
+   "box_2d": [
+    553,
+    558,
+    572,
+    736
+   ],
+   "key": "education.graduation.year"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "Graduation - Percentage",
+   "kind": "text",
+   "box_2d": [
+    553,
+    743,
+    572,
+    938
+   ],
+   "key": "education.graduation.percentage"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Bank Account No. (for refund)",
+   "kind": "skip",
+   "box_2d": [
+    591,
+    353,
+    608,
+    765
+   ],
+   "key": null
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "label": "Place",
+   "kind": "text",
+   "box_2d": [
+    672,
+    143,
+    689,
+    387
+   ],
+   "key": "permanentAddress.city"
+  },
+  {
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": true,
+   "label": "Signature of Candidate",
+   "kind": "skip",
+   "box_2d": [
+    656,
+    672,
+    689,
+    941
+   ],
+   "key": null
+  }
+ ]
+}

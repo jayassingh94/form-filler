@@ -78,6 +78,10 @@ test('offline keyword mapping', () => {
   assert.equal(k('Category'), 'category.category');
   assert.equal(k('Name of the Candidate'), 'personal.fullName');
   assert.equal(k('Gender'), 'personal.gender');
+  assert.equal(k('Permanent Address'), 'permanentAddress.full');
+  assert.equal(k('House No. / Street'), 'permanentAddress.houseNo');
+  assert.equal(k('Address Line 1'), 'permanentAddress.line1');
+  assert.equal(k('Place'), 'currentAddress.city');
   assert.equal(k('Date of Birth (DD/MM/YYYY)'), 'personal.dob');
   assert.equal(k('Birth Day'), 'personal.dobDay');
   assert.equal(k('Birth Month'), 'personal.dobMonth');

@@ -59,12 +59,16 @@
           <li>Dropdown and radio-button option texts shown on the page</li>
           <li>The fixed list of generic profile key names (e.g. <code>personal.dob</code>) and their descriptions</li>
           <li>The <i>names</i> (not values) of any custom fields you created</li>
+          <li><b>Fill a PDF</b>, fillable PDFs: the PDF's field names, nearby labels and option texts</li>
+          <li><b>Fill a PDF</b>, flat/scanned PDFs: <b>images of the PDF's pages</b>, only after you tick
+            "I understand" and click Detect. Use a blank form, as anything already written on it is visible in the images.</li>
         </ul>
       </td>
       <td>
         <ul>
           <li>Any of your profile values (name, date of birth, address, numbers…)</li>
           <li>Your documents or their names</li>
+          <li>The filled-in PDF (values are written onto it on your computer)</li>
           <li>Your PIN</li>
           <li>The page address (URL) or anything you typed into the form</li>
           <li>Password, card, CVV, bank, OTP and captcha fields (skipped entirely)</li>
@@ -102,7 +106,15 @@
   <p>The "Pick from locker" window opens inside a protected extension frame that the web page cannot read. A document is
     handed to the page only when you click <b>Attach</b>, and only to the upload field you chose. Resizing happens locally.</p>
 
-  <h2>7. Backups, export and deletion</h2>
+  <h2>7. Fill a PDF</h2>
+  <ul>
+    <li>The PDF you open is kept only in that tab's memory. It is not stored unless you click <b>Save to locker</b>, and it is cleared when Form Filler locks.</li>
+    <li>Your values are written onto the PDF locally (with the bundled pdf-lib library). The download goes straight to your computer.</li>
+    <li>Password, card, bank and OTP fields in PDFs are skipped, the same as on web pages. Photo and signature boxes are left empty.</li>
+    <li>Without a Gemini key, fillable PDFs are matched offline, and flat PDFs can be detected offline (digital PDFs only) or filled by placing boxes yourself.</li>
+  </ul>
+
+  <h2>8. Backups, export and deletion</h2>
   <ul>
     <li><b>Export backup</b> saves one file that stays encrypted with the PIN in use at the time. Store it safely; anyone with the file
       and that PIN can read it.</li>
@@ -111,10 +123,10 @@
       Uninstalling the extension also removes its stored data.</li>
   </ul>
 
-  <h2>8. Children</h2>
+  <h2>9. Children</h2>
   <p>Form Filler does not collect data from anyone. Profiles you create for family members stay on your computer like everything else.</p>
 
-  <h2>9. Changes and contact</h2>
+  <h2>10. Changes and contact</h2>
   <p>Any change to this policy will be listed here with a new date. Questions: open an issue in the project's GitHub repository.</p>
 </main>
 </body>

@@ -286,9 +286,11 @@
     if (addrField) {
       const cur = /current|present|correspond|communication|mailing|postal address|residential/.test(ctx);
       const prefix = cur ? 'currentAddress' : 'permanentAddress';
-      if (addrField === 'line1' && f.tag === 'textarea') return `${prefix}.full`;
+      const bare = own.replace(/\b(permanent|current|present|correspondence|communication|postal|mailing|residential|full|complete)\b/g, '').trim();
+      if (addrField === 'line1' && (f.tag === 'textarea' || /^address( for (correspondence|communication))?$/.test(bare))) return `${prefix}.full`;
       return `${prefix}.${addrField}`;
     }
+    if (/^place$/.test(own.trim())) return 'currentAddress.city';
     if (/experience/.test(own)) return /month/.test(own) ? 'experience.totalMonths' : 'experience.totalYears';
     if (/employer|organi[sz]ation|company/.test(own)) return 'work.current.employer';
     if (/designation|post held/.test(own)) return 'work.current.designation';
