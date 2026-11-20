@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand"><img src="../icons/icon48.png" alt="" width="28" height="28"> <b>Form Filler</b> <span class="muted">· Fill a PDF</span></div>
+    <div class="brand"><img src="../icons/icon48.png" alt="" width="26" height="26"> <b>Form Filler</b> <span class="crumb">Fill a PDF</span></div>
     <nav class="links">
       <a href="../options/options.html#profiles">My Profile</a>
       <a href="../options/options.html#docs">Document Locker</a>
@@ -22,63 +22,82 @@
   <div id="lock" class="lockwrap hidden"></div>
 
   <div id="app" class="layout hidden">
-    <aside class="side">
-      <section class="card">
-        <h2>1. Choose</h2>
-        <label><span>Fill as</span><select id="profile"></select></label>
-        <label class="btn primary-file" style="margin-top:10px;text-align:center">Open a PDF form…<input type="file" id="file" accept="application/pdf,.pdf" hidden></label>
-        <p class="small muted" style="margin-top:8px">The PDF stays in this tab's memory. It is not stored unless you save the filled copy to your locker.</p>
-        <div id="file-info" class="small"></div>
-      </section>
+    <aside class="side" id="side" aria-label="Steps">
+      <div class="side-head">
+        <span class="side-title">Steps</span>
+        <button id="side-toggle" class="icon-btn" type="button" aria-expanded="true" aria-controls="side-body" title="Collapse panel">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
 
-      <section class="card hidden" id="step-detect">
-        <h2>2. Find the blanks</h2>
-        <div id="detect-acro" class="hidden">
-          <p class="small">This PDF has <b id="acro-count"></b> real form fields. They'll be filled directly, so they stay editable in any PDF reader.</p>
-          <p class="small muted" id="acro-ai-note"></p>
-          <button class="primary" id="run-acro">Fill the form fields</button>
-        </div>
-        <div id="detect-flat" class="hidden">
-          <p class="small">This PDF has no form fields (a flat or scanned form). Form Filler can find the blank lines and boxes for you.</p>
-          <div id="ai-block">
-            <p class="notice small">Detecting with AI sends <b>images of these pages</b> to Google Gemini, plus the list of generic profile key names.
-              <b>Your profile values are never sent.</b> Use a <b>blank</b> form: anything already written on it is visible in the images.</p>
-            <label class="small consent"><input type="checkbox" id="ai-consent"> I understand. Send <span id="page-count"></span> page image(s) of this blank form.</label>
-            <button class="primary" id="run-ai" disabled>Detect blanks with AI</button>
+      <div class="side-body" id="side-body">
+        <!-- 1 -->
+        <details class="step" id="step-choose" open>
+          <summary><span class="num">1</span><span class="st">Choose</span><span class="sum" id="sum-choose"></span></summary>
+          <div class="step-body">
+            <label><span>Fill as</span><select id="profile"></select></label>
+            <label class="btn primary-file">Open a PDF form…<input type="file" id="file" accept="application/pdf,.pdf" hidden></label>
+            <div id="file-info" class="small"></div>
+            <p class="hint">The PDF stays in this tab's memory. It is only stored if you save the filled copy to your locker.</p>
           </div>
-          <p class="small muted hidden" id="no-key"></p>
-          <button id="run-offline" style="margin-top:8px">Detect offline (digital PDFs only)</button>
-        </div>
-        <div id="progress" class="small" style="margin-top:8px"></div>
-      </section>
+        </details>
 
-      <section class="card hidden" id="step-edit">
-        <h2>3. Check &amp; adjust</h2>
-        <p class="small muted">Drag a box by its ⠿ handle, resize it from the corner, and click a box to edit it.
-          <span class="sw g"></span> filled · <span class="sw y"></span> check or fill yourself.</p>
-        <div class="row">
-          <button id="add-text">+ Text</button>
-          <button id="add-tick">+ Tick ✓</button>
-          <label class="row small"><input type="checkbox" id="show-empty" checked> Show empty boxes</label>
-        </div>
-        <div id="editor" class="editor hidden"></div>
-        <div id="item-list" class="item-list"></div>
-      </section>
+        <!-- 2 -->
+        <details class="step hidden" id="step-detect" open>
+          <summary><span class="num">2</span><span class="st">Find the blanks</span><span class="sum" id="sum-detect"></span></summary>
+          <div class="step-body">
+            <div id="detect-acro" class="hidden">
+              <p class="small">This PDF has <b id="acro-count"></b> real form fields. They are filled directly and stay editable in any PDF reader.</p>
+              <p class="hint" id="acro-ai-note"></p>
+              <button class="primary wide" id="run-acro">Fill the form fields</button>
+            </div>
+            <div id="detect-flat" class="hidden">
+              <p class="small">No form fields here (a flat or scanned form). Form Filler can find the empty spaces next to the labels.</p>
+              <div id="ai-block">
+                <div class="notice small">Detecting with AI sends <b>images of these pages</b> to Google Gemini, plus generic profile key names.
+                  <b>Your profile values are never sent.</b> Use a <b>blank</b> form, because anything already written on it is visible in the images.</div>
+                <label class="consent small"><input type="checkbox" id="ai-consent"> I understand. Send <b id="page-count"></b>&nbsp;page image(s) of this blank form.</label>
+                <button class="primary wide" id="run-ai" disabled>Detect blanks with AI</button>
+              </div>
+              <p class="hint hidden" id="no-key"></p>
+              <button class="wide" id="run-offline">Detect offline (digital PDFs only)</button>
+            </div>
+            <div id="progress" class="small"></div>
+          </div>
+        </details>
 
-      <section class="card hidden" id="step-save">
-        <h2>4. Save</h2>
-        <label class="row small hidden" id="flatten-row"><input type="checkbox" id="flatten"> Flatten form fields (not editable afterwards)</label>
-        <div class="row" style="margin-top:6px">
-          <button class="primary" id="download">Download filled PDF</button>
-          <button id="to-locker">Save to locker</button>
-        </div>
-        <div id="save-msg" class="small" style="margin-top:6px"></div>
-      </section>
+        <!-- 3 -->
+        <details class="step hidden" id="step-edit" open>
+          <summary><span class="num">3</span><span class="st">Check &amp; adjust</span><span class="sum" id="sum-edit"></span></summary>
+          <div class="step-body">
+            <div class="toolbar">
+              <button id="add-text" type="button" title="Click on the page to add a text box">+ Text</button>
+              <button id="add-tick" type="button" title="Click on the page to add a tick">+ Tick</button>
+              <label class="toggle small"><input type="checkbox" id="show-empty" checked> Highlight fields to check</label>
+            </div>
+            <div class="legend small"><span class="dot g"></span> filled <span class="dot y"></span> check or fill yourself</div>
+            <div id="item-list" class="field-list" role="list"></div>
+          </div>
+        </details>
+
+        <!-- 4 -->
+        <details class="step hidden" id="step-save" open>
+          <summary><span class="num">4</span><span class="st">Save</span><span class="sum" id="sum-save"></span></summary>
+          <div class="step-body">
+            <label class="toggle small hidden" id="flatten-row"><input type="checkbox" id="flatten"> Flatten form fields (no longer editable)</label>
+            <button class="primary wide" id="download">Download filled PDF</button>
+            <button class="wide" id="to-locker">Save to locker</button>
+            <div id="save-msg" class="small"></div>
+          </div>
+        </details>
+      </div>
     </aside>
 
     <main class="pages" id="pages">
-      <div class="empty muted">Open a PDF form to start.<br>
-        Try <code>test/sample-flat-form.pdf</code> or <code>test/sample-acroform.pdf</code> from the project folder.</div>
+      <div class="empty">
+        <p><b>Open a PDF form to start.</b></p>
+        <p class="muted">Try <code>test/sample-flat-form.pdf</code>, <code>test/sample-bilingual-form.pdf</code> or <code>test/sample-acroform.pdf</code> from the project folder.</p>
+      </div>
     </main>
   </div>
 

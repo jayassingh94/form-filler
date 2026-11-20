@@ -105,6 +105,8 @@ async function openPdf(name, bytes) {
   info(`${name} · ${pdf.numPages} page(s) · ${(bytes.length / 1024).toFixed(0)} KB`, '');
   await renderPages();
   $('#step-detect').classList.remove('hidden');
+  $('#step-detect').open = true;
+  $('#sum-detect').textContent = '';
   const hasKey = !!vault.settings.apiKey;
   if (acroCount) {
     $('#detect-acro').classList.remove('hidden');
@@ -629,9 +631,17 @@ async function runStep(fn) {
   try {
     let text = await fn();
     const m = vault.settings.model;
-    if (aiWarning) { progress(`${text} ${aiWarning}`, 'warn'); return; }
-    if (vault.settings.apiKey && lastModelUsed && lastModelUsed !== m && fn !== detectOffline) text += ` (${m} was busy, so ${lastModelUsed} answered.)`;
-    progress(text, 'ok');
+    if (aiWarning) { progress(`${text} ${aiWarning}`, 'warn'); }
+    else {
+      if (vault.settings.apiKey && lastModelUsed && lastModelUsed !== m && fn !== detectOffline) text += ` (${m} was busy, so ${lastModelUsed} answered.)`;
+      progress(text, 'ok');
+    }
+    // done: fold steps 1–2 so the field list comes up
+    $('#sum-detect').textContent = text.split(/[.(]/)[0];
+    $('#step-choose').open = false;
+    $('#step-detect').open = false;
+    $('#step-edit').open = true;
+    updateSummaries();
   } catch (err) {
     progress(err.message === 'LOCKED' ? 'Locked. Unlock and try again.' : err.message, 'err');
   } finally {
@@ -646,7 +656,6 @@ function renderAll() {
   for (const p of pages) p.el.querySelectorAll('.ov').forEach((n) => n.remove());
   for (const it of items) renderItem(it);
   renderList();
-  renderEditor();
 }
 
 function isGreen(it) {
@@ -664,16 +673,15 @@ function renderItem(it) {
     p.el.appendChild(el);
     attachDrag(el, it);
   }
-  const empty = it.kind === 'text' ? !it.text : false;
-  el.className = `ov ${it.kind === 'check' ? 'check' : 'text'} ${it.spare ? 'spare' : isGreen(it) ? '' : 'y'} ${it.acro ? 'acro' : ''} ${selected === it.id ? 'sel' : ''} ${empty && !$('#show-empty').checked ? 'hide' : ''}`;
+  el.className = `ov ${it.kind === 'check' ? 'check' : 'text'} ${it.spare ? 'spare' : isGreen(it) ? '' : 'y'} ${it.acro ? 'acro' : ''} ${selected === it.id ? 'sel' : ''}`;
   Object.assign(el.style, { left: it.box.x * 100 + '%', top: it.box.y * 100 + '%', width: it.box.w * 100 + '%', height: it.box.h * 100 + '%' });
   const onText = it.kind === 'text' && it.text && p.text && G.overlapsText(it.box, p.text);
-  el.title = `${it.label || 'Text'}${it.key ? ` (${it.key})` : ''}${onText ? ' ⚠ overlaps printed text' : it.note ? ` ⚠ ${it.note}` : ''}`;
+  el.title = `${splitLabel(it.label).en}${onText ? ' ⚠ overlaps printed text' : it.note ? ` ⚠ ${it.note}` : ''}`;
   const k = p.cssW / p.vp1.width; // css px per pt
   const hPt = it.box.h * p.vp1.height;
   if (it.kind === 'check') {
     el.style.fontSize = Math.max(8, hPt * 0.9 * k) + 'px';
-    el.innerHTML = `<span class="grip">⠿</span>${it.checked ? '✓' : ''}<span class="rs"></span>`;
+    el.innerHTML = `<span class="grip"></span>${it.checked ? '✓' : ''}<span class="rs"></span>`;
     return;
   }
   const size = it.fontSize || G.autoFontSize(hPt, it.cells);
@@ -681,14 +689,18 @@ function renderItem(it) {
   el.style.fontSize = fit * k + 'px';
   if (it.cells > 1) {
     const chars = graphemes(it.text).slice(0, it.cells);
-    el.innerHTML = `<span class="grip">⠿</span><div class="cells">${Array.from({ length: it.cells }, (_, i) => `<span>${esc(chars[i] || '')}</span>`).join('')}</div><span class="rs"></span>`;
+    el.innerHTML = `<span class="grip"></span><div class="cells">${Array.from({ length: it.cells }, (_, i) => `<span>${esc(chars[i] || '')}</span>`).join('')}</div><span class="rs"></span>`;
   } else {
     const multi = it.text.includes('\n');
-    el.innerHTML = `<span class="grip">⠿</span>${multi ? '<textarea' : '<input'} spellcheck="false" aria-label="${esc(it.label)}">${multi ? '</textarea>' : ''}<span class="rs"></span>`;
+    el.innerHTML = `<span class="grip"></span>${multi ? '<textarea' : '<input'} spellcheck="false" aria-label="${esc(splitLabel(it.label).en)}">${multi ? '</textarea>' : ''}<span class="rs"></span>`;
     const inp = el.querySelector('input, textarea');
     if (multi) inp.style.lineHeight = Math.max(fit * 1.25, (hPt / it.text.split('\n').length)) * k + 'px';
     inp.value = it.text;
-    inp.oninput = () => { it.text = inp.value; it.edited = true; it.sure = !!it.text; el.classList.toggle('y', !isGreen(it)); renderList(); syncEditorText(it); };
+    inp.oninput = () => {
+      it.text = inp.value; it.edited = true; it.sure = !!it.text;
+      el.classList.toggle('y', !isGreen(it));
+      syncEditorText(it);
+    };
     inp.onfocus = () => select(it.id, false);
   }
 }
@@ -699,18 +711,11 @@ function attachDrag(el, it) {
     if (addMode) return;
     const grip = e.target.closest('.grip'), rs = e.target.closest('.rs');
     if (it.kind === 'check' && !grip && !rs) {
-      if (it.acro?.type === 'radio' || (it.group && !it.acro)) {
-        // ticking one option in a group unticks the others
-        const was = it.checked;
-        for (const o of items) if (o.group && o.group === it.group) { o.checked = false; o.edited = true; }
-        it.checked = !was;
-      } else it.checked = !it.checked;
-      it.edited = true; it.sure = true;
-      for (const o of items) if (o.group && o.group === it.group) renderItem(o);
-      select(it.id);
+      toggleTick(it, !it.checked);
+      select(it.id, false, { revealCard: true });
       return;
     }
-    select(it.id, !e.target.matches('input'));
+    select(it.id, false, { revealCard: true });
     if (it.acro || (!grip && !rs)) return;
     e.preventDefault();
     const p = pages[it.page - 1];
@@ -727,10 +732,18 @@ function attachDrag(el, it) {
       it.edited = true;
       renderItem(it);
     };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); refreshCard(it); };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   });
+}
+
+/** Tick / untick; ticking one option of a group unticks the others. */
+function toggleTick(it, on) {
+  if (on && it.group) for (const o of items) if (o.group === it.group && o !== it) { o.checked = false; o.edited = true; o.sure = true; renderItem(o); }
+  it.checked = on; it.edited = true; it.sure = true;
+  renderItem(it);
+  refreshCard(it);
 }
 
 function onPagePointer(e, n) {
@@ -744,7 +757,7 @@ function onPagePointer(e, n) {
   items.push(it);
   setAddMode(null);
   renderItem(it);
-  select(it.id);
+  select(it.id, false, { revealCard: true });
   if (it.kind === 'text') setTimeout(() => pages[n - 1].el.querySelector(`.ov[data-id="${it.id}"] input`)?.focus(), 0);
 }
 
@@ -756,9 +769,15 @@ function setAddMode(m) {
 }
 $('#add-text').onclick = () => setAddMode(addMode === 'text' ? null : 'text');
 $('#add-tick').onclick = () => setAddMode(addMode === 'check' ? null : 'check');
-$('#show-empty').onchange = () => renderAll();
+const applyHighlight = () => $('#pages').classList.toggle('hl', $('#show-empty').checked);
+$('#show-empty').onchange = applyHighlight;
+applyHighlight();
 
-function select(id, scroll = false) {
+/**
+ * Select an item. `scroll` brings its box into view in the preview; `revealCard` scrolls its card into view
+ * in the side panel.
+ */
+function select(id, scroll = false, { revealCard = false } = {}) {
   const prev = selected;
   selected = id;
   for (const p of pages) p.el.querySelectorAll('.ov.sel').forEach((n) => n.classList.remove('sel'));
@@ -768,86 +787,258 @@ function select(id, scroll = false) {
     el?.classList.add('sel');
     if (scroll) el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
-  if (prev !== id) { renderList(); renderEditor(); }
+  if (prev !== id) markSelectedCard();
+  if (id && revealCard) {
+    $('#step-edit').open = true;
+    $('#item-list').querySelector('.fc.sel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
-// ---------------- sidebar ----------------
-function renderList() {
-  const host = $('#item-list');
-  if (!items.length) { host.innerHTML = '<p class="small muted">No boxes yet.</p>'; return; }
-  const parts = [];
-  for (const p of pages) {
-    const list = items.filter((i) => i.page === p.num);
-    if (!list.length) continue;
-    parts.push(`<div class="pg">Page ${p.num}</div>`);
-    for (const it of list) {
-      const v = it.kind === 'check' ? (it.checked ? '✓' : '') : it.text;
-      parts.push(`<button data-id="${it.id}" class="${selected === it.id ? 'sel' : ''}"><span class="sw ${it.spare ? 's' : isGreen(it) ? 'g' : 'y'}"></span>
-        <span>${esc(it.label || 'Text')}${it.option && it.option !== it.label ? ` · ${esc(it.option)}` : ''}</span><span class="v">${esc(v)}</span></button>`);
-    }
-  }
-  host.innerHTML = parts.join('');
+// ---------------- labels for display ----------------
+const DEVA = /[ऀ-ॿ]/;
+const CONS = '[\\u0915-\\u0939\\u0958-\\u095F]\\u093C?';
+const ORPHAN_I = new RegExp(`(^|[^\\u0915-\\u0939\\u0958-\\u095F\\u093C])\\u093F((?:${CONS}\\u094D)*${CONS})`, 'g');
+/** Tidy Hindi extracted from PDFs with old fonts: drop stray symbols, put a leading ि after its consonant ("िपता" → "पिता"). */
+function cleanHindi(s) {
+  return String(s).replace(/[Ā-˿�]/g, '').replace(ORPHAN_I, '$1$2ि').replace(/\s+/g, ' ').trim();
 }
-$('#item-list').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-id]');
-  if (b) select(b.dataset.id, true);
-});
+/** Bilingual "English / हिंदी" label -> { en, hi } (English first). */
+function splitLabel(label) {
+  const L = String(label || '').trim();
+  if (!L) return { en: 'Text', hi: '' };
+  const parts = L.split(/\s+\/\s+/);
+  const isHi = (p) => DEVA.test(p) && !/[A-Za-z]{2}/.test(p);
+  const en = parts.filter((p) => !isHi(p)).join(' / ');
+  const hi = parts.filter(isHi).join(' / ');
+  if (en && hi) return { en, hi: cleanHindi(hi) };
+  if (!en) return { en: cleanHindi(hi), hi: '' };
+  return { en: DEVA.test(en) ? cleanHindi(en) : en, hi: '' };
+}
+
+// ---------------- side panel: field cards ----------------
+/** Cards: one per field; an address spread over several lines and a tick-box group each get one card. */
+function entries() {
+  const out = [];
+  const seen = new Set();
+  const sorted = [...items].sort((a, b) => a.page - b.page || a.box.y - b.box.y || a.box.x - b.box.x);
+  for (const it of sorted) {
+    if (seen.has(it.id)) continue;
+    let group = [it], type = 'one';
+    if (it.addrGroup) { group = sorted.filter((o) => o.addrGroup === it.addrGroup); type = 'addr'; }
+    else if (it.kind === 'check' && it.group) { group = sorted.filter((o) => o.kind === 'check' && o.group === it.group); type = 'checks'; }
+    group.forEach((o) => seen.add(o.id));
+    out.push({ type, items: group, page: it.page });
+  }
+  return out;
+}
+
+function entryStatus(e) {
+  if (e.type === 'addr') return e.items.some((i) => i.text) && e.items.every((i) => i.spare || isGreen(i)) ? 'g' : 'y';
+  if (e.type === 'checks') return e.items.some((i) => i.checked) && e.items.every((i) => i.sure) ? 'g' : 'y';
+  return isGreen(e.items[0]) ? 'g' : 'y';
+}
+
+let optsOpen = false;
+
+function cardBody(e) {
+  const it = e.items[0];
+  if (e.type === 'addr') {
+    const lines = e.items.map((i) => i.text);
+    while (lines.length > 1 && !lines[lines.length - 1]) lines.pop();
+    return `<textarea class="fc-input" data-act="addr" rows="${Math.max(2, e.items.length)}" spellcheck="false" aria-label="${esc(splitLabel(it.label).en)}">${esc(lines.join('\n'))}</textarea>`;
+  }
+  if (it.kind === 'check') {
+    return `<div class="chips">${e.items.map((i) => {
+      const opt = e.type === 'checks' ? splitLabel(i.option || i.label).en : 'Ticked';
+      return `<label class="chip ${i.checked ? 'on' : ''}"><input type="checkbox" data-act="tick" data-item="${i.id}" ${i.checked ? 'checked' : ''}> ${esc(opt)}</label>`;
+    }).join('')}</div>`;
+  }
+  if (it.options) {
+    return `<select class="fc-input" data-act="sel"><option value=""></option>${it.options.map((o) => `<option ${o === it.text ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  }
+  if (it.text.includes('\n')) return `<textarea class="fc-input" data-act="text" rows="${it.text.split('\n').length}" spellcheck="false">${esc(it.text)}</textarea>`;
+  return `<input class="fc-input" data-act="text" value="${esc(it.text)}" spellcheck="false" placeholder="Empty: type a value or leave blank" aria-label="${esc(splitLabel(it.label).en)}">`;
+}
 
 function keyOptions(current) {
   const cat = keyCatalog(profile());
   return `<option value="">(none: type your own)</option>` + cat.map((c) => `<option value="${c.key}" ${c.key === current ? 'selected' : ''}>${esc(c.desc)}</option>`).join('');
 }
 
-function renderEditor() {
-  const box = $('#editor');
-  const it = items.find((i) => i.id === selected);
-  if (!it) { box.classList.add('hidden'); box.innerHTML = ''; return; }
-  box.classList.remove('hidden');
+function cardOptions(it) {
   const p = pages[it.page - 1];
-  const autoSize = G.autoFontSize(it.box.h * p.vp1.height);
-  box.innerHTML = `
-    <b>${esc(it.label || 'Text')}${it.option && it.option !== it.label ? ` · ${esc(it.option)}` : ''}</b>
-    ${it.kind === 'text' ? `
-      <label><span>Fill from profile</span><select id="ed-key">${keyOptions(it.key)}</select></label>
-      ${it.options
-        ? `<label><span>Value</span><select id="ed-sel"><option value=""></option>${it.options.map((o) => `<option ${o === it.text ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`
-        : `${it.text.includes('\n') || it.addrGroup ? `<label><span>Text</span><textarea id="ed-text" rows="3" spellcheck="false">${esc(it.text)}</textarea></label>` : `<label><span>Text</span><input id="ed-text" value="${esc(it.text)}" spellcheck="false"></label>`}`}
-      ${it.acro ? '' : `<div class="grid2">
-        <label><span>Font size (pt)</span><input id="ed-size" type="number" min="5" max="36" step="0.5" value="${it.fontSize || autoSize}"></label>
-        <label><span>Letter boxes</span><input id="ed-cells" type="number" min="0" max="60" value="${it.cells || 0}"></label>
+  const autoSize = G.autoFontSize(it.box.h * p.vp1.height, it.cells);
+  const textOpts = it.kind === 'text' ? `
+      <label><span>Fill from profile</span><select data-act="key">${keyOptions(it.key)}</select></label>
+      ${it.acro ? '' : `<div class="grid2" style="margin-top:8px">
+        <label><span>Font size (pt)</span><input data-act="size" type="number" min="5" max="36" step="0.5" value="${it.fontSize || autoSize}"></label>
+        <label><span>Letter boxes</span><input data-act="cells" type="number" min="0" max="60" value="${it.cells || 0}"></label>
       </div>
-      <label class="row small"><input type="checkbox" id="ed-upper" ${it.upper ? 'checked' : ''}> CAPITAL LETTERS</label>`}`
-    : `<label class="row small"><input type="checkbox" id="ed-checked" ${it.checked ? 'checked' : ''}> Ticked</label>`}
-    <div class="row">${it.acro ? '' : '<button class="danger" id="ed-del">Delete box</button>'}<button id="ed-done">Done</button></div>`;
-  const rerender = () => { renderItem(it); renderList(); };
-  $('#ed-key', box)?.addEventListener('change', (e) => {
-    it.key = e.target.value || null; it.keys = it.key ? [it.key] : []; it.conf = 'high';
-    if (isAddressKey(it.key)) { it.addrGroup = 'm' + it.id; it.edited = false; resolveAddressGroups(); }
-    else { it.addrGroup = null; applyValue(it); }
-    it.edited = true; it.sure = !!it.text; rerender(); renderEditor();
+      <label class="toggle" style="margin-top:8px"><input type="checkbox" data-act="upper" ${it.upper ? 'checked' : ''}> CAPITAL LETTERS</label>`}` : '';
+  return `<details class="fc-opts" ${optsOpen ? 'open' : ''}><summary>Options</summary>${textOpts}
+    <div class="row">${it.acro ? '' : '<button class="danger" data-act="del" type="button">Delete box</button>'}<button data-act="done" type="button">Done</button></div></details>`;
+}
+
+function renderList() {
+  const host = $('#item-list');
+  // keep focus and cursor while re-rendering
+  const ae = document.activeElement;
+  const keep = ae && host.contains(ae) ? { card: ae.closest('.fc')?.dataset.id, act: ae.dataset.act, item: ae.dataset.item, pos: ae.selectionStart } : null;
+  if (!items.length) {
+    host.innerHTML = '<div class="empty-list">No fields yet. Run step 2, or add your own with “+ Text”.</div>';
+    updateSummaries();
+    return;
+  }
+  const html = [];
+  let lastPage = 0;
+  const es = entries();
+  for (const e of es) {
+    if (pages.length > 1 && e.page !== lastPage) { html.push(`<div class="pg">Page ${e.page}</div>`); lastPage = e.page; }
+    const it = e.items[0];
+    const { en, hi } = splitLabel(it.label || (it.kind === 'check' ? 'Tick' : 'Text'));
+    const sel = e.items.find((i) => i.id === selected);
+    const note = e.items.map((i) => i.note).find(Boolean) ||
+      (e.items.some((i) => i.kind === 'text' && i.text && pages[i.page - 1]?.text && G.overlapsText(i.box, pages[i.page - 1].text)) ? 'Overlaps printed text' : '');
+    html.push(`<div class="fc ${sel ? 'sel' : ''}" data-id="${it.id}" role="listitem">
+      <div class="fc-head" data-act="pick"><span class="dot ${entryStatus(e)}" aria-label="${entryStatus(e) === 'g' ? 'filled' : 'to check'}"></span>
+        <div class="fc-label"><div class="en">${esc(en)}</div>${hi ? `<div class="hi" lang="hi">${esc(hi)}</div>` : ''}${note ? `<div class="note">⚠ ${esc(note)}</div>` : ''}</div></div>
+      ${cardBody(e)}
+      ${sel ? cardOptions(sel) : ''}
+    </div>`);
+  }
+  host.innerHTML = html.join('');
+  if (keep?.card) {
+    const card = host.querySelector(`.fc[data-id="${keep.card}"]`);
+    const el = card?.querySelector(keep.item ? `[data-item="${keep.item}"]` : `[data-act="${keep.act}"]`);
+    if (el) { el.focus({ preventScroll: true }); try { if (keep.pos != null) el.setSelectionRange(keep.pos, keep.pos); } catch { /* not a text input */ } }
+  }
+  updateSummaries();
+}
+
+/** Highlight the selected item's card and show its options, without rebuilding the list (keeps focus/caret). */
+function markSelectedCard() {
+  const host = $('#item-list');
+  const sel = items.find((i) => i.id === selected);
+  const es = entries();
+  host.querySelectorAll('.fc').forEach((card) => {
+    const e = es.find((x) => x.items[0].id === card.dataset.id);
+    const has = !!sel && !!e?.items.includes(sel);
+    card.classList.toggle('sel', has);
+    const opts = card.querySelector('.fc-opts');
+    if (opts && (!has || opts.dataset.item !== sel.id)) opts.remove();
+    if (has && !card.querySelector('.fc-opts')) {
+      card.insertAdjacentHTML('beforeend', cardOptions(sel));
+      card.querySelector('.fc-opts').dataset.item = sel.id;
+    }
   });
-  $('#ed-text', box)?.addEventListener('input', (e) => { it.text = e.target.value; it.edited = true; it.sure = !!it.text; rerender(); });
-  $('#ed-sel', box)?.addEventListener('change', (e) => { it.text = e.target.value; it.edited = true; it.sure = !!it.text; rerender(); });
-  $('#ed-size', box)?.addEventListener('input', (e) => { it.fontSize = Number(e.target.value) || null; it.edited = true; rerender(); });
-  $('#ed-cells', box)?.addEventListener('input', (e) => { it.cells = Math.max(0, Number(e.target.value) || 0); it.edited = true; rerender(); });
-  $('#ed-upper', box)?.addEventListener('change', (e) => { it.upper = e.target.checked; it.text = it.upper ? it.text.toUpperCase() : it.text; it.edited = true; rerender(); renderEditor(); });
-  $('#ed-checked', box)?.addEventListener('change', (e) => {
-    if (e.target.checked && it.group) for (const o of items) if (o.group === it.group && o !== it) { o.checked = false; renderItem(o); }
-    it.checked = e.target.checked; it.edited = true; it.sure = true; rerender();
+}
+
+const cardOf = (el) => {
+  const card = el.closest('.fc');
+  if (!card) return null;
+  const e = entries().find((x) => x.items[0].id === card.dataset.id);
+  return e ? { card, e } : null;
+};
+
+/** Update one card's dot (and its input, if it isn't being typed in) without rebuilding the list. */
+function refreshCard(it) {
+  const e = entries().find((x) => x.items.includes(it));
+  const card = e && $('#item-list').querySelector(`.fc[data-id="${e.items[0].id}"]`);
+  if (!card) return;
+  card.querySelector('.fc-head .dot').className = `dot ${entryStatus(e)}`;
+  const inp = card.querySelector('.fc-input');
+  if (inp && inp !== document.activeElement) {
+    if (e.type === 'addr') inp.value = e.items.map((i) => i.text).join('\n').replace(/\n+$/, '');
+    else if (inp.dataset.act === 'text') inp.value = it.text;
+  }
+  card.querySelectorAll('[data-act=tick]').forEach((cb) => {
+    const o = items.find((i) => i.id === cb.dataset.item);
+    cb.checked = !!o?.checked;
+    cb.closest('.chip').classList.toggle('on', cb.checked);
   });
-  $('#ed-del', box)?.addEventListener('click', () => {
+  updateSummaries();
+}
+
+$('#item-list').addEventListener('click', (ev) => {
+  const c = cardOf(ev.target);
+  if (!c) return;
+  const act = ev.target.closest('[data-act]')?.dataset.act;
+  const it = items.find((i) => i.id === selected) || c.e.items[0];
+  if (act === 'pick') { select(c.e.items[0].id, true); return; }
+  if (act === 'del' && !it.acro) {
     items = items.filter((i) => i !== it);
     pages[it.page - 1].el.querySelector(`.ov[data-id="${it.id}"]`)?.remove();
     select(null);
-  });
-  $('#ed-done', box).onclick = () => select(null);
-}
+    renderList();
+    return;
+  }
+  if (act === 'done') { select(null); return; }
+});
+$('#item-list').addEventListener('toggle', (ev) => { if (ev.target.matches('.fc-opts')) optsOpen = ev.target.open; }, true);
+$('#item-list').addEventListener('focusin', (ev) => {
+  const c = cardOf(ev.target);
+  if (!c || ev.target.closest('.fc-opts')) return;
+  if (!c.e.items.some((i) => i.id === selected)) select(c.e.items[0].id, true);
+});
+$('#item-list').addEventListener('input', (ev) => {
+  const c = cardOf(ev.target);
+  if (!c) return;
+  const act = ev.target.dataset.act;
+  const it = items.find((i) => i.id === selected) || c.e.items[0];
+  if (act === 'text') {
+    it.text = ev.target.value; it.edited = true; it.sure = !!it.text; it.note = null;
+    renderItem(it); refreshCard(it);
+  } else if (act === 'addr') {
+    // one card line per printed line; anything extra joins the last line
+    const lines = ev.target.value.split('\n');
+    const n = c.e.items.length;
+    c.e.items.forEach((o, k) => {
+      o.text = k < n - 1 ? (lines[k] || '') : lines.slice(k).join(' ').trim();
+      o.edited = true; o.sure = true; o.spare = !o.text && k > 0; o.note = null;
+      renderItem(o);
+    });
+    refreshCard(c.e.items[0]);
+  } else if (act === 'size') { it.fontSize = Number(ev.target.value) || null; it.edited = true; renderItem(it); }
+  else if (act === 'cells') { it.cells = Math.max(0, Number(ev.target.value) || 0); it.edited = true; renderItem(it); }
+});
+$('#item-list').addEventListener('change', (ev) => {
+  const c = cardOf(ev.target);
+  if (!c) return;
+  const act = ev.target.dataset.act;
+  const it = items.find((i) => i.id === selected) || c.e.items[0];
+  if (act === 'tick') { toggleTick(items.find((i) => i.id === ev.target.dataset.item), ev.target.checked); return; }
+  if (act === 'sel') { it.text = ev.target.value; it.edited = true; it.sure = !!it.text; renderItem(it); refreshCard(it); return; }
+  if (act === 'upper') { it.upper = ev.target.checked; it.text = it.upper ? it.text.toUpperCase() : it.text; it.edited = true; renderItem(it); renderList(); return; }
+  if (act === 'key') {
+    it.key = ev.target.value || null; it.keys = it.key ? [it.key] : []; it.conf = 'high';
+    if (isAddressKey(it.key)) { it.addrGroup = 'm' + it.id; it.edited = false; resolveAddressGroups(); }
+    else { it.addrGroup = null; applyValue(it); }
+    it.edited = true; it.sure = !!it.text;
+    renderItem(it); renderList();
+  }
+});
 
 function syncEditorText(it) {
-  if (selected !== it.id) return;
-  const inp = $('#ed-text');
-  if (inp && inp.value !== it.text) inp.value = it.text;
+  refreshCard(it);
 }
+
+// ---------------- step summaries, collapsing ----------------
+function updateSummaries() {
+  const es = entries().filter((e) => !(e.type === 'one' && e.items[0].spare));
+  const filled = es.filter((e) => entryStatus(e) === 'g').length;
+  $('#sum-edit').textContent = es.length ? `${filled} filled · ${es.length - filled} to check` : '';
+  $('#sum-choose').textContent = file ? file.name : '';
+}
+
+function setSideCollapsed(c) {
+  $('#app').classList.toggle('collapsed', c);
+  const b = $('#side-toggle');
+  b.setAttribute('aria-expanded', String(!c));
+  b.title = c ? 'Show panel' : 'Collapse panel';
+  try { localStorage.setItem('ff_pdf_side', c ? '1' : '0'); } catch { /* storage unavailable */ }
+}
+$('#side-toggle').onclick = () => setSideCollapsed(!$('#app').classList.contains('collapsed'));
+try { if (localStorage.getItem('ff_pdf_side') === '1') setSideCollapsed(true); } catch { /* storage unavailable */ }
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { setAddMode(null); select(null); }
