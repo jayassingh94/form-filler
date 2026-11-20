@@ -6,132 +6,143 @@
   <title>Form Filler Privacy Policy</title>
   <link rel="stylesheet" href="lib/ui.css">
   <style>
-    main { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+    main { max-width: 780px; margin: 0 auto; padding: 28px 16px 60px; }
     h1 { font-size: 26px; }
-    h2 { margin-top: 28px; }
+    h2 { margin-top: 30px; }
+    h3 { margin-top: 18px; }
     li { margin-bottom: 6px; }
     .summary { margin: 16px 0 8px; }
-    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
     th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 8px 6px; vertical-align: top; }
+    th { white-space: nowrap; }
+    code { font-size: 12.5px; }
   </style>
 </head>
 <body>
 <main>
   <h1>Form Filler Privacy Policy</h1>
-  <p class="muted">Last updated: 20 November 2026</p>
+  <p class="muted">Last updated: 20 November 2026 · applies to Form Filler 1.1 and its AI service</p>
 
   <div class="card summary">
-    <b>In short:</b> your details and documents stay on your computer, encrypted with your PIN. The only thing that
-    ever leaves your computer is the <b>text of a form's field labels and dropdown options</b>, sent to Google Gemini
-    when you click <b>Fill this form</b> (and only if you have added a Gemini API key). Your answers, files and PIN are
-    never sent anywhere. There is no analytics, tracking, account, or server run by Form Filler.
+    <b>In short:</b> your details, documents and PIN stay on your computer, encrypted. They are never sent anywhere.
+    To match form fields, Form Filler may send <b>the form's own text</b> (field labels, option texts) and, only if you
+    agree, <b>images of a blank PDF form</b> to an AI. By default that goes through Form Filler's small server, which
+    passes it to Google Gemini and <b>keeps nothing</b>. You can use your own Gemini key instead, or switch AI off
+    completely. There is no analytics, tracking, advertising or account.
   </div>
 
-  <h2>1. What Form Filler stores</h2>
+  <h2>1. What Form Filler stores, and where</h2>
   <ul>
-    <li><b>Profiles</b>: the personal, family, address, contact, education, category, work and custom details you type in.</li>
-    <li><b>Documents</b>: files you add to the Document Locker (photo, signature, marksheets, certificates) with their names and tags.</li>
-    <li><b>Settings</b>: your Gemini API key and model name.</li>
-    <li><b>Site access list</b>: managed by Chrome itself (sites where you allowed Form Filler to run).</li>
+    <li><b>Profiles</b>: the personal, family, address, contact, education, category, work and custom details you enter.</li>
+    <li><b>Documents</b>: files you add to the Document Locker (photo, signature, marksheets, certificates) and their names and tags.</li>
+    <li><b>Settings</b>: your AI choice, and your Gemini API key if you use your own.</li>
+    <li><b>An anonymous install ID</b> (a random number, see section 5) and today's count of free AI uses.</li>
   </ul>
+  <p>All of this stays in your Chrome profile on this computer (<code>chrome.storage.local</code> and the extension's
+    IndexedDB). It is not synced to your Google account or any cloud, and Form Filler's developer never receives it.</p>
 
-  <h2>2. Where and how it is stored</h2>
+  <h2>2. How it is protected</h2>
   <ul>
-    <li>Only inside your Chrome profile on this computer: <code>chrome.storage.local</code> for profiles and settings, and
-      the extension's <code>IndexedDB</code> for document files. Nothing is synced to your Google account or any cloud.</li>
-    <li>Everything is <b>encrypted with AES-256-GCM</b> using a key derived from your PIN (PBKDF2-SHA-256, 600,000 rounds, random salt).
-      Your PIN itself is never stored.</li>
-    <li>When you unlock, the key is kept only in Chrome's in-memory session storage (never written to disk) and is erased when you
-      click <b>Lock</b>, after <b>5 minutes without use</b>, or when you close the browser.</li>
-    <li>After several wrong PINs, Form Filler makes you wait before trying again.</li>
+    <li>Profiles, documents and settings are encrypted with <b>AES-256-GCM</b>, using a key derived from your PIN
+      (PBKDF2-SHA-256, 600,000 rounds, random salt). Your PIN is never stored.</li>
+    <li>When unlocked, the key is kept only in memory and is erased when you lock, after <b>5 minutes without use</b>, or when you close Chrome.</li>
+    <li>After several wrong PINs you must wait before trying again.</li>
   </ul>
-  <p class="notice small">Honest limits: a short, numbers-only PIN can be guessed by someone who copies your Chrome profile files and tries
-    PINs offline. Use a longer PIN, ideally with letters. Encryption cannot protect you from malware already running on your
-    computer, or from anyone using your computer while Form Filler is unlocked. If you forget your PIN, your data cannot be recovered.</p>
+  <p class="notice small">Honest limits: a short, numbers-only PIN can be guessed by someone who copies your Chrome profile files.
+    Use a longer PIN, ideally with letters. Encryption can't protect against malware already on your computer, or someone using
+    it while Form Filler is unlocked. A forgotten PIN means the data can't be recovered.</p>
 
-  <h2>3. What is sent to Google Gemini (and what is not)</h2>
+  <h2>3. What leaves your computer</h2>
+  <p>Only when you use an AI feature, and only the form's own content: never your profile values, documents, PIN, the page address,
+    or anything you typed into a form. Where it goes depends on <b>Settings → AI matching</b>:</p>
   <table>
-    <tr><th>Sent (only when you click Fill, only with an API key)</th><th>Never sent</th></tr>
-    <tr>
-      <td>
-        <ul>
-          <li>Each form field's label, nearby heading, placeholder, name attribute and type</li>
-          <li>Dropdown and radio-button option texts shown on the page</li>
-          <li>The fixed list of generic profile key names (e.g. <code>personal.dob</code>) and their descriptions</li>
-          <li>The <i>names</i> (not values) of any custom fields you created</li>
-          <li><b>Fill a PDF</b>, fillable PDFs: the PDF's field names, nearby labels and option texts</li>
-          <li><b>Photo/signature size rules</b>: only when you click "Read rules from this page with AI", the short pieces of
-            the page's own text that mention sizes or formats (e.g. "Signature: JPG, 10–20 KB, 140 × 60 pixels"). You see the
-            exact list first. E-mail addresses, phone numbers and long numbers are masked, and what you typed into the form is never included.</li>
-          <li><b>Fill a PDF</b>, flat/scanned PDFs: <b>images of the PDF's pages</b>, only after you tick
-            "I understand" and click Detect. Use a blank form, as anything already written on it is visible in the images.</li>
-        </ul>
-      </td>
-      <td>
-        <ul>
-          <li>Any of your profile values (name, date of birth, address, numbers…)</li>
-          <li>Your documents or their names, and your photo or signature images (cropping, resizing, compression and
-            signature clean-up all happen on your computer)</li>
-          <li>The filled-in PDF (values are written onto it on your computer)</li>
-          <li>Your PIN</li>
-          <li>The page address (URL) or anything you typed into the form</li>
-          <li>Password, card, CVV, bank, OTP and captcha fields (skipped entirely)</li>
-        </ul>
-      </td>
-    </tr>
+    <tr><th>Setting</th><th>Where requests go</th></tr>
+    <tr><td><b>Form Filler AI (free)</b><br><span class="muted small">default</span></td>
+      <td>To Form Filler's AI server (section 4), which passes them to Google Gemini and returns the answer. Up to 10 uses a day.</td></tr>
+    <tr><td><b>My own Gemini key</b></td>
+      <td>Straight from your browser to Google Gemini (<code>generativelanguage.googleapis.com</code>) using your key. Form Filler's server is not involved.</td></tr>
+    <tr><td><b>Off</b></td><td>Nowhere. Offline keyword matching only.</td></tr>
   </table>
-  <p>Gemini replies with which profile key fits each field. Form Filler then looks up your values and fills them in
-    <b>locally</b> on your computer. The request goes directly from your browser to
-    <code>generativelanguage.googleapis.com</code> using your own API key, so Google's
-    <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Gemini API terms</a> and
-    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">privacy policy</a> apply to that request.
-    Note that on Google's free tier, Google may use submitted content to improve its products; this content is only
-    field labels and option texts, never your data. Without an API key, Form Filler uses an offline keyword matcher and
-    sends nothing at all.</p>
 
-  <h2>4. Fields Form Filler will never fill</h2>
-  <p>Passwords, credit/debit card numbers, expiry dates, CVV/CVC, bank account numbers, IFSC/SWIFT/IBAN codes,
-    UPI/ATM PINs, OTPs/verification codes, security questions and captchas. These are detected by field type,
-    autocomplete hints and label text, and are left untouched and not sent to the AI.</p>
+  <h3>What each feature sends</h3>
+  <table>
+    <tr><th>Feature</th><th>Sent (form content only)</th></tr>
+    <tr><td>Fill a web form</td><td>Each field's label, nearby heading, placeholder, name attribute and type; dropdown and radio option texts;
+      the fixed list of generic profile field names (e.g. <code>personal.dob</code>); the <i>names</i> (not values) of your custom fields.</td></tr>
+    <tr><td>Fill a PDF: fillable PDF</td><td>The PDF's field names, nearby labels and option texts, plus the generic field names.</td></tr>
+    <tr><td>Fill a PDF: flat or scanned PDF</td><td><b>Images of the PDF's pages</b>, only after you tick “I understand” and click Detect, plus the
+      generic field names. Use a blank form: anything already written on it is visible in the images.</td></tr>
+    <tr><td>Photo / signature size rules</td><td>Only after you click “Read rules from this page with AI”: short snippets of the page's own text that
+      mention sizes or formats, which you see first. E-mails, phone numbers and long numbers are masked.</td></tr>
+  </table>
+  <p><b>Never sent:</b> your profile values (name, date of birth, address, numbers…), documents and their names, photos and signatures,
+    your PIN, the page address, what you typed into forms, and password / card / bank / OTP / captcha fields (these are skipped entirely).
+    Your values are filled in <b>on your computer</b> after the AI answers which field is which.</p>
 
-  <h2>5. What Form Filler will never do</h2>
+  <h2>4. Form Filler's AI server</h2>
+  <p>The free AI option uses a small server run by Form Filler's developer (hosted on Render). Its code is part of the
+    extension's source, and it works like this:</p>
   <ul>
-    <li>Never submits a form or clicks a submit button. You always review and submit yourself.</li>
-    <li>Clicking the Form Filler icon lets it see only the <b>address of the current tab</b> (Chrome's "activeTab"
-      permission), so it can ask for access to that site. It reads nothing on the page at that point.</li>
-    <li>Never runs on a page until you click <b>Fill this form</b> on it. Chrome asks your permission for each site the first
-      time; you can remove that permission any time in Settings → Sites with access, or in Chrome's extension settings.</li>
-    <li>No analytics, telemetry, crash reporting, advertising, tracking pixels or remote code. The extension's only network
-      request is the Gemini call described above.</li>
-    <li>No selling or sharing of data. The developer never receives any of your data.</li>
+    <li><b>It accepts only</b> the three kinds of requests above (field labels, a blank page image, upload-rule text). It builds the AI prompt
+      itself and ignores anything else in a request, so it can't be used as a general chatbot. As a safety net it masks anything that looks
+      like an e-mail address, phone number or long number.</li>
+    <li><b>It passes the request to Google Gemini</b> using the developer's API key and returns only Gemini's answer.</li>
+    <li><b>It stores nothing:</b> no requests, answers, images or labels are saved or logged. Its log records only the time, the request type,
+      the result code and how long it took. No install ID, IP address or content.</li>
+    <li><b>Daily limits</b> are counted in the server's memory only, using a hashed install ID and your IP address hashed with a secret that
+      changes every day and is never saved. These counters are deleted every day at midnight UTC and whenever the server restarts.</li>
+    <li><b>Hosting:</b> like any website, the hosting provider (Render) handles the connection and may keep standard access records (IP
+      address, time, request path) under its own <a href="https://render.com/privacy" target="_blank" rel="noopener">privacy policy</a>.
+      These never include the request content.</li>
   </ul>
 
-  <h2>6. Document Locker on web pages</h2>
-  <p>The "Pick from locker" window opens inside a protected extension frame that the web page cannot read. A document is
-    handed to the page only when you click <b>Attach</b>, and only to the upload field you chose. Resizing happens locally.</p>
+  <h2>5. The anonymous install ID</h2>
+  <p>When you first use the free AI, Form Filler creates a random ID (for example <code>3f1c2a9e-…</code>) and sends it with each free AI request,
+    only so that the daily limit of 10 uses can be applied per installation. It is not linked to your name, e-mail, Google account or
+    profile, is not used for anything else, and is deleted when you remove the extension or use <b>Delete all data</b>.</p>
 
-  <h2>7. Fill a PDF</h2>
+  <h2>6. Google Gemini</h2>
+  <p>Requests are processed by Google under the <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Gemini API terms</a>
+    and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>.</p>
   <ul>
-    <li>The PDF you open is kept only in that tab's memory. It is not stored unless you click <b>Save to locker</b>, and it is cleared when Form Filler locks.</li>
-    <li>Your values are written onto the PDF locally (with the bundled pdf-lib library). The download goes straight to your computer.</li>
-    <li>Password, card, bank and OTP fields in PDFs are skipped, the same as on web pages. Photo and signature boxes are left empty.</li>
-    <li>Without a Gemini key, fillable PDFs are matched offline, and flat PDFs can be detected offline (digital PDFs only) or filled by placing boxes yourself.</li>
+    <li><b>Free AI option:</b> Form Filler's server uses a Gemini API key with billing enabled (Google's “paid” tier). Under Google's terms,
+      paid-tier prompts and responses are not used to improve Google's products.</li>
+    <li><b>Your own key:</b> your own Google account's terms apply. On Google's free tier, Google may use submitted content (here only labels,
+      option texts or blank-form images) to improve its products.</li>
   </ul>
 
-  <h2>8. Backups, export and deletion</h2>
+  <h2>7. Fields Form Filler never fills, and what it never does</h2>
   <ul>
-    <li><b>Export backup</b> saves one file that stays encrypted with the PIN in use at the time. Store it safely; anyone with the file
-      and that PIN can read it.</li>
-    <li><b>Import backup</b> replaces all current data with the backup's contents.</li>
-    <li><b>Delete all data</b> erases profiles, documents, settings, your PIN data and site permissions from this browser.
-      Uninstalling the extension also removes its stored data.</li>
+    <li>Never fills passwords, card numbers, expiry dates, CVV, bank account numbers, IFSC/SWIFT/IBAN, UPI/ATM PINs, OTPs, security
+      questions or captchas.</li>
+    <li>Never fills officer or authority sections of PDF forms (e.g. “Certifying Officer”, “For office use only”).</li>
+    <li>Never submits a form. You always review and submit yourself.</li>
+    <li>Never runs on a website until you click <b>Fill this form</b> there. Chrome asks your permission per site, and you can remove it any
+      time (Settings → Sites with access). Clicking the icon lets it see only the current tab's address, to ask for that permission.</li>
+    <li>No analytics, telemetry, crash reporting, advertising, tracking or remote code. Nothing is sold or shared.</li>
   </ul>
 
-  <h2>9. Children</h2>
-  <p>Form Filler does not collect data from anyone. Profiles you create for family members stay on your computer like everything else.</p>
+  <h2>8. Fill a PDF and the Document Locker</h2>
+  <ul>
+    <li>A PDF you open is kept only in that tab's memory, unless you save the filled copy to your locker. It is cleared when Form Filler locks.</li>
+    <li>Values are written onto the PDF on your computer; the download goes straight to your computer.</li>
+    <li>“Pick from locker” opens in a protected extension frame the website can't read. A document is given to a page only when you click
+      Attach. Cropping, resizing and compressing photos and signatures happen on your computer.</li>
+  </ul>
 
-  <h2>10. Changes and contact</h2>
-  <p>Any change to this policy will be listed here with a new date. Questions: open an issue in the project's GitHub repository.</p>
+  <h2>9. Backups, export and deletion</h2>
+  <ul>
+    <li><b>Export backup</b> saves one file that stays encrypted with your PIN. Anyone with the file and that PIN can read it.</li>
+    <li><b>Import backup</b> replaces everything with the backup's contents.</li>
+    <li><b>Delete all data</b> erases profiles, documents, settings, your PIN data, the install ID and site permissions from this browser.
+      Uninstalling the extension also removes its data. Form Filler's server holds nothing about you to delete.</li>
+  </ul>
+
+  <h2>10. Children</h2>
+  <p>Form Filler doesn't collect data from anyone. Profiles you create for family members stay on your computer like everything else.</p>
+
+  <h2>11. Changes and contact</h2>
+  <p>Changes to this policy are listed here with a new date. For questions, use the support link on Form Filler's Chrome Web Store page.</p>
 </main>
 </body>
 </html>
