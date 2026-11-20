@@ -1,7 +1,7 @@
 // Service worker: orchestrates "Fill this form", relays locker files to the page, and auto-locks.
 import './content/fillcore.js';
 import { loadVault, checkAutoLock } from './lib/vault.js';
-import { keyCatalog, resolveValue } from './lib/schema.js';
+import { keyCatalog, resolveValue, resolveFirst } from './lib/schema.js';
 import { mapFieldsWithGemini, lastModelUsed } from './lib/ai.js';
 import { getDocBytes } from './lib/vault.js';
 import { addDocument } from './lib/docs.js';
@@ -116,11 +116,15 @@ async function handleFill({ tabId, profileId, overwrite }) {
     if (!perFrame.has(x.frameId)) perFrame.set(x.frameId, { assignments: [], review: [] });
     const bucket = perFrame.get(x.frameId);
     const m = mapping.get(i);
-    const val = m && resolveValue(profile, m.key);
+    // Try, in order: a precise label rule ("Full Name", "Address for Correspondence"), the AI's key,
+    // then the keyword guess, and use the first that has a value in the profile.
+    const precise = C.labelKey(x.d.label);
+    const keys = [precise, m?.key, mode === 'ai' ? C.heuristicKey(x.d) : null];
+    const val = resolveFirst(profile, keys);
     if (!val) { bucket.review.push(x.d.ffId); return; }
     bucket.assignments.push({
-      ffId: x.d.ffId, key: m.key, value: val.value, kind: val.kind,
-      sure: m.confidence === 'high', dateFormat: m.dateFormat
+      ffId: x.d.ffId, key: val.key, value: val.value, kind: val.kind,
+      sure: val.key === precise || (m?.key === val.key ? m.confidence === 'high' : mode !== 'ai'), dateFormat: m?.dateFormat
     });
   });
 

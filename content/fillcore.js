@@ -231,6 +231,107 @@
     return req;
   }
 
+  // ---------------- precise label rules (names and addresses) ----------------
+  /** Lower-case a printed label: curly quotes -> ', drop list numbering, stars and trailing ":" / "-". */
+  function normLabel(s) {
+    return String(s || '').toLowerCase()
+      .replace(/[\u2018\u2019\u201B`\u00B4]/g, "'")
+      .replace(/\*/g, ' ')
+      .replace(/^\s*\(?(\d{1,2}|[a-h]|[ivx]{1,4})[.)]\s*/, '')
+      .replace(/\s+/g, ' ').trim()
+      .replace(/[\s:\-–_.]+$/, '').trim();
+  }
+
+  const NOT_PERSON = /\b(school|college|institut\w*|universit\w*|board|bank|branch|company|employer|organi[sz]ation|firm|village|city|town|district|state|country|post ?office|police|exam\w*|course|degree|hospital|nominee|user ?name|login|nick ?name|account|file|document|post|designation|scheme|project)\b/;
+
+  /**
+   * Keys for the common ways forms ask for names and addresses ("Full Name", "Name of Applicant",
+   * "Father’s Name", "S/o", "Address for Correspondence", "Permanent Address"…). Null if unsure.
+   */
+  function labelKey(label) {
+    const n = normLabel(label);
+    if (!n) return null;
+    // "Correspondence address same as permanent" / "Same as above" is the tick box, not an address
+    if (/\bsame as\b|\bsimilar to\b|\bcopy (from|of)\b/.test(n) && /permanent|above|address/.test(n)) return 'currentAddress.sameAsPermanent';
+    const hasName = /\bnames?\b/.test(n);
+    // relations (checked before the generic "name")
+    if (/\b(s|d)\s*\/\s*o\b|\b(son|daughter) of\b/.test(n)) return 'family.fatherName';
+    if (/\bw\s*\/\s*o\b|\bwife of\b/.test(n)) return 'family.spouseName';
+    if (/father/.test(n) && (hasName || /^father'?s?( ?\/ ?(husband|guardian)'?s?)?$/.test(n)) && !/occupation|income|mobile|phone|profession|job/.test(n)) return 'family.fatherName';
+    if (/mother/.test(n) && (hasName || /^mother'?s?$/.test(n)) && !/occupation|income|mobile|phone|tongue|profession|job/.test(n)) return 'family.motherName';
+    if (/\b(husband|wife|spouse)/.test(n) && (hasName || /^(husband|wife|spouse)'?s?$/.test(n)) && !/occupation|income|mobile|phone/.test(n)) return 'family.spouseName';
+    if (/guardian/.test(n) && hasName) return 'family.guardianName';
+    if (hasName && /hindi|devanagari|regional|vernacular|local language|mother tongue/.test(n)) return 'personal.nameHindi';
+    if (hasName && !NOT_PERSON.test(n) && !/\b(first|middle|last|sur|given|family|fore)\s*-?\s*name|surname|initials?|\bfather|\bmother|\bguardian|\bspouse|\bhusband|\bwife/.test(n)) {
+      return 'personal.fullName';
+    }
+    // addresses
+    const n2 = n.replace(/\bwith (pin|zip)( ?code)?\b/, '');
+    if (/\baddress\b/.test(n2) && !/e-?mail|web|ip address|url|office|employer|company|institut|school|college|\bline ?([1-9]|one|two|three)\b|\bpin\b|\bzip\b|city|district|state|phone|mobile|proof/.test(n2)) {
+      if (/permanent|native|domicile|ancestral|perm\b/.test(n2)) return 'permanentAddress.full';
+      if (/correspond|communication|present|current|mailing|postal|local|temporary|contact|residential|residence|where you live/.test(n2)) return 'currentAddress.full';
+      if (/\bhome\b/.test(n2)) return 'permanentAddress.full';
+      return 'currentAddress.full'; // plain "Address" / "Full address": where you live now (same as permanent if ticked)
+    }
+    return null;
+  }
+
+  /**
+   * Repair a key name returned by the AI ("fullName", "father_name", "permanentAddress"…) to one of `keys`.
+   * Returns null if nothing fits.
+   */
+  const KEY_ALIASES = {
+    name: 'personal.fullName', fullname: 'personal.fullName', applicantname: 'personal.fullName', candidatename: 'personal.fullName',
+    fathername: 'family.fatherName', fathersname: 'family.fatherName', mothername: 'family.motherName', mothersname: 'family.motherName',
+    husbandname: 'family.spouseName', wifename: 'family.spouseName',
+    address: 'currentAddress.full', fulladdress: 'currentAddress.full', correspondenceaddress: 'currentAddress.full',
+    addressforcorrespondence: 'currentAddress.full', presentaddress: 'currentAddress.full', communicationaddress: 'currentAddress.full',
+    mailingaddress: 'currentAddress.full', postaladdress: 'currentAddress.full', currentaddress: 'currentAddress.full',
+    permanentaddress: 'permanentAddress.full', homeaddress: 'permanentAddress.full',
+    dob: 'personal.dob', dateofbirth: 'personal.dob', email: 'contact.email', emailid: 'contact.email',
+    mobile: 'contact.mobile', mobileno: 'contact.mobile', phone: 'contact.mobile', phonenumber: 'contact.mobile'
+  };
+  function normalizeKey(raw, keys) {
+    if (!raw || typeof raw !== 'string') return null;
+    const set = keys instanceof Set ? keys : new Set(keys);
+    if (set.has(raw)) return raw;
+    const c = (x) => x.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const want = c(raw);
+    for (const k of set) if (c(k) === want) return k;
+    if (KEY_ALIASES[want] && set.has(KEY_ALIASES[want])) return KEY_ALIASES[want];
+    if (set.has(raw + '.full')) return raw + '.full';
+    for (const k of set) if (c(k) === want + 'full') return k;
+    const last = c(raw.split(/[.\/]/).pop());
+    if (KEY_ALIASES[last] && set.has(KEY_ALIASES[last])) return KEY_ALIASES[last];
+    const bySuffix = [...set].filter((k) => c(k.split('.').pop()) === last);
+    return bySuffix.length === 1 ? bySuffix[0] : null;
+  }
+
+  /**
+   * "asha kumari VERMA" -> "Asha Kumari Verma"; "UNIVERSITY OF LUCKNOW" -> "University of Lucknow";
+   * keeps short all-caps words (UP, PO, OBC) and anything the user typed in mixed case.
+   */
+  const SMALL_WORDS = new Set(['of', 'and', 'the', 'in', 'at', 'for', 'on', 'to', 'by', 'de', 'da', 'di', 'van', 'von', 'bin', 'near']);
+  function properCase(text) {
+    const s = String(text ?? '');
+    const letters = s.replace(/[^A-Za-z]/g, '');
+    if (!letters) return s;
+    const allLower = letters === letters.toLowerCase(), allUpper = letters === letters.toUpperCase();
+    if (!allLower && !allUpper) {
+      // mixed: only fix individual words that are entirely lower-case at the start of a name part
+      return s.replace(/(^|[\s,(\/-])([a-z])(?=[a-z]*)/g, (m, sep, ch) => sep + ch.toUpperCase())
+        .replace(/\b(Of|And|The|In|At|For|On|To|By)\b(?!$)/g, (w, _x, i) => (i === 0 ? w : w.toLowerCase()));
+    }
+    let wordIndex = 0;
+    return s.replace(/[A-Za-z][A-Za-z']*/g, (w, offset) => {
+      const lower = w.toLowerCase();
+      const first = wordIndex++ === 0 || /[,(\/-]\s*$/.test(s.slice(0, offset));
+      if (allUpper && w.length <= 3 && !SMALL_WORDS.has(lower)) return w; // UP, PO, OBC, B.SC parts
+      if (!first && SMALL_WORDS.has(lower)) return lower;
+      return lower.replace(/(^|')([a-z])/g, (m, q, ch) => q + ch.toUpperCase());
+    });
+  }
+
   // ---------------- offline keyword mapper (used when no API key / AI fails) ----------------
   const EDU = [
     [/post ?grad|\bmaster|\bm\.? ?(a|sc|com|tech|e)\b|\bpg\b|\bmba\b|\bmca\b/, 'postGraduation'],
@@ -255,6 +356,8 @@
   ];
 
   function heuristicKey(f) {
+    const precise = labelKey(f.label) || (!f.label ? labelKey(f.placeholder) : null);
+    if (precise) return precise;
     const label = humanize([f.label, f.placeholder, f.name, f.idAttr].filter(Boolean).join(' ')).toLowerCase();
     const ctx = (label + ' ' + humanize(f.section).toLowerCase()).trim();
     const own = label;
@@ -329,7 +432,8 @@
 
   const api = {
     humanize, norm, isSensitive, detectDateFormat, formatDate, nativeDateValue,
-    matchOption, isPlaceholderOption, toBool, parseUploadRequirements, heuristicKey, MONTHS
+    matchOption, isPlaceholderOption, toBool, parseUploadRequirements, heuristicKey, MONTHS,
+    normLabel, labelKey, normalizeKey, properCase
   };
   root.FFCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

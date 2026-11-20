@@ -25,8 +25,11 @@ test('text layout: single line and character boxes', () => {
   assert.equal(cells.length, 4);
   assert.equal(cells[1].x - cells[0].x, 14, 'one character per 14pt box');
   assert.equal(G.fitFontSize('a very long piece of text', 12, 50, measure) < 12, true);
-  assert.equal(G.autoFontSize(14), 8.5);
-  assert.equal(G.autoFontSize(40), 12);
+  assert.equal(G.autoFontSize(9), 10, 'never below 10 pt by default');
+  assert.equal(G.autoFontSize(14), 10);
+  assert.equal(G.autoFontSize(16), 11.5);
+  assert.equal(G.autoFontSize(40), 12, 'never above 12 pt');
+  assert.equal(G.autoFontSize(16, 20), 11, 'letter boxes follow the box');
 });
 
 test('values for PDF boxes and tick groups', () => {

@@ -138,6 +138,39 @@ async function acro() {
   fs.writeFileSync(ROOT + 'test/sample-acroform.pdf', await doc.save());
 }
 
+// Labels exactly as reported in a real form (no colons, curly apostrophe, multi-line addresses).
+async function labels() {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([W, H]);
+  const f = await doc.embedFont(StandardFonts.Helvetica);
+  const fb = await doc.embedFont(StandardFonts.HelveticaBold);
+  const ink = rgb(0, 0, 0);
+  const t = (s, x, y, size = 10.5, font = f) => page.drawText(s, { x, y, size, font, color: ink });
+  const line = (x0, x1, y) => page.drawLine({ start: { x: x0, y }, end: { x: x1, y }, thickness: 0.6, color: ink });
+  const X0 = 200, X1 = 540, items = [];
+  // what a model might return: label + messy/missing keys, one item per printed line
+  const add = (label, y, key, extra = {}) => { line(X0, X1, y); items.push({ label, kind: 'text', box_2d: box2d(X0, y, X1, y + 15), key, confidence: 'high', cells: 0, uppercase: false, ...extra }); };
+  t('APPLICATION FORM', 230, 790, 14, fb);
+  t('Full Name', 50, 722); add('Full Name', 720, 'fullName');
+  t('Father\u2019s Name', 50, 692); add('Father\u2019s Name', 690, 'father_name');
+  t("Mother's Name", 50, 662); add("Mother's Name", 660, null, { confidence: 'low' });
+  t('Date of Birth', 50, 632); add('Date of Birth', 630, 'personal.dob', { dateFormat: 'DD/MM/YYYY' });
+  t('Permanent Address', 50, 592);
+  add('Permanent Address', 590, 'permanentAddress.line1');
+  add('Permanent Address (contd.)', 566, null);
+  add('Permanent Address (contd.)', 542, null);
+  t('Address for Correspondence', 50, 502);
+  add('Address for Correspondence', 500, 'currentAddress');
+  add('', 476, null);
+  add('', 452, null);
+  t('Mobile No.', 50, 412); add('Mobile No.', 410, 'contact.mobile');
+  t('Signature of Applicant', 400, 330, 9); line(380, 540, 342);
+  items.push({ label: 'Signature of Applicant', kind: 'skip', box_2d: box2d(380, 342, 540, 370), key: null, confidence: 'high' });
+  fs.writeFileSync(ROOT + 'test/sample-labels-form.pdf', await doc.save());
+  fs.writeFileSync(ROOT + 'tests/fixtures/labels-layout.json', JSON.stringify({ page: { w: W, h: H }, items }, null, 1));
+}
+
 await flat();
 await acro();
-console.log('wrote test/sample-flat-form.pdf, test/sample-acroform.pdf, tests/fixtures/flat-layout.json');
+await labels();
+console.log('wrote sample PDFs in test/ and layouts in tests/fixtures/');

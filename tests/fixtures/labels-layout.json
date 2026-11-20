@@ -1,0 +1,175 @@
+{
+ "page": {
+  "w": 595,
+  "h": 842
+ },
+ "items": [
+  {
+   "label": "Full Name",
+   "kind": "text",
+   "box_2d": [
+    127,
+    336,
+    145,
+    908
+   ],
+   "key": "fullName",
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Father’s Name",
+   "kind": "text",
+   "box_2d": [
+    163,
+    336,
+    181,
+    908
+   ],
+   "key": "father_name",
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Mother's Name",
+   "kind": "text",
+   "box_2d": [
+    198,
+    336,
+    216,
+    908
+   ],
+   "key": null,
+   "confidence": "low",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Date of Birth",
+   "kind": "text",
+   "box_2d": [
+    234,
+    336,
+    252,
+    908
+   ],
+   "key": "personal.dob",
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false,
+   "dateFormat": "DD/MM/YYYY"
+  },
+  {
+   "label": "Permanent Address",
+   "kind": "text",
+   "box_2d": [
+    281,
+    336,
+    299,
+    908
+   ],
+   "key": "permanentAddress.line1",
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Permanent Address (contd.)",
+   "kind": "text",
+   "box_2d": [
+    310,
+    336,
+    328,
+    908
+   ],
+   "key": null,
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Permanent Address (contd.)",
+   "kind": "text",
+   "box_2d": [
+    338,
+    336,
+    356,
+    908
+   ],
+   "key": null,
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Address for Correspondence",
+   "kind": "text",
+   "box_2d": [
+    388,
+    336,
+    406,
+    908
+   ],
+   "key": "currentAddress",
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "",
+   "kind": "text",
+   "box_2d": [
+    417,
+    336,
+    435,
+    908
+   ],
+   "key": null,
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "",
+   "kind": "text",
+   "box_2d": [
+    445,
+    336,
+    463,
+    908
+   ],
+   "key": null,
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Mobile No.",
+   "kind": "text",
+   "box_2d": [
+    495,
+    336,
+    513,
+    908
+   ],
+   "key": "contact.mobile",
+   "confidence": "high",
+   "cells": 0,
+   "uppercase": false
+  },
+  {
+   "label": "Signature of Applicant",
+   "kind": "skip",
+   "box_2d": [
+    561,
+    639,
+    594,
+    908
+   ],
+   "key": null,
+   "confidence": "high"
+  }
+ ]
+}

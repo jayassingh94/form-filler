@@ -72,6 +72,13 @@ After pulling new code, click the ↻ reload icon on the Form Filler card in `ch
 4. Click **Download filled PDF** (or **Save to locker**). Check it before submitting.
 
 Notes:
+- **How boxes are matched:** common label wordings are recognised directly. Examples: "Full Name", "Name of Applicant", "Father’s Name", "S/o", "Mother's Name", "Permanent Address", "Address for Correspondence", "Present Address". Gemini's answer is checked against them, and the first match that has a value in your profile wins.
+- **Values are built on your computer:**
+  - Full Name is first + middle + last.
+  - Addresses are joined neatly from house no./street, landmark, locality, city, district and "State - PIN", spread across the form's printed address lines.
+  - Names and places are written with proper capitals ("asha VERMA" → "Asha Verma").
+  - Text is 10–12 pt, and only shrinks if a box is too small.
+  - `test/sample-labels-form.pdf` has these labels for testing.
 - **Hindi and Devanagari** (Marathi, Nepali, Sanskrit…) work, including mixed text like "आशा (Asha)". It is shaped properly
   (conjuncts, ि, reph, ु/ँ) with the bundled Noto Sans Devanagari font and drawn as outlines, so it looks right in every
   PDF viewer. Hindi drawn onto flat forms can't be selected or searched as text; in fillable fields the real Unicode value
