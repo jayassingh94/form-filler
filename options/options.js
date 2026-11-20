@@ -2,7 +2,7 @@ import { SCHEMA, newProfile, getPath, setPath } from '../lib/schema.js';
 import { loadVault, saveVault, lock, changePin, exportBackup, importBackup, deleteAll, isSetUp, DEFAULT_MODEL } from '../lib/vault.js';
 import { showLock, onLocked, addPinReveal, hideAllPins } from '../lib/lockui.js';
 import { addDocument, removeDocument, docBlob, formatSize, guessTags, fileExt } from '../lib/docs.js';
-import { testGemini, aiMode, quotaToday } from '../lib/ai.js';
+import { testGemini, aiMode, quotaToday, serviceConfigured } from '../lib/ai.js';
 import { demoProfile } from '../lib/demo.js';
 import { openImageEditor } from '../lib/imgedit.js';
 
@@ -312,7 +312,10 @@ function renderSettings() {
 const msg = (el, text, cls = 'muted') => { el.className = 'small ' + cls; el.textContent = text; };
 
 const selectedMode = () => document.querySelector('input[name=ai-mode]:checked')?.value || 'service';
-function showModeFields() { $('#own-key').classList.toggle('hidden', selectedMode() !== 'own'); }
+function showModeFields() {
+  $('#own-key').classList.toggle('hidden', selectedMode() !== 'own');
+  $('#service-missing').classList.toggle('hidden', !(selectedMode() === 'service' && !serviceConfigured()));
+}
 document.querySelectorAll('input[name=ai-mode]').forEach((r) => r.addEventListener('change', showModeFields));
 
 $('#api-key-show').onclick = () => {

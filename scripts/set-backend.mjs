@@ -8,6 +8,6 @@ const cfg = new URL('lib/config.js', root);
 fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf8').replace(/export const BACKEND_URL = '[^']*';/, `export const BACKEND_URL = '${url}';`));
 const mf = new URL('manifest.json', root);
 const m = JSON.parse(fs.readFileSync(mf, 'utf8'));
-m.host_permissions = [...m.host_permissions.filter((h) => !/onrender\.com|\/\/(?!generativelanguage)/.test(h) || h.includes('generativelanguage')), `${url}/*`];
+m.host_permissions = [...m.host_permissions.filter((h) => h.includes('generativelanguage.googleapis.com')), `${url}/*`];
 fs.writeFileSync(mf, JSON.stringify(m, null, 2) + '\n');
 console.log('AI server set to', url, '\nhost_permissions:', m.host_permissions.join(', '));

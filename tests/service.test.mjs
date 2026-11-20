@@ -1,8 +1,14 @@
 // The extension's free-service mode: what it sends to the Form Filler server, and the daily-limit message.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as AI from '../lib/ai.js';
-import { BACKEND_URL } from '../lib/config.js';
+// this test needs a server address; the repo ships with none (lib/config.js), so point at a fake one
+import fs from 'node:fs';
+const cfgPath = new URL('../lib/config.js', import.meta.url);
+const original = fs.readFileSync(cfgPath, 'utf8');
+const BACKEND_URL = 'https://ff-test.example';
+fs.writeFileSync(cfgPath, original.replace(/export const BACKEND_URL = '[^']*';/, `export const BACKEND_URL = '${BACKEND_URL}';`));
+const AI = await import('../lib/ai.js?service-test');
+fs.writeFileSync(cfgPath, original);
 
 // minimal chrome.storage stand-in (install ID + quota)
 const store = {};
@@ -43,6 +49,21 @@ test('daily limit: friendly error, quota 0; unreachable server: clear message', 
   assert.equal(await AI.quotaToday(), 0);
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(AI.testGemini({}), /Couldn't reach Form Filler's AI service.*Offline matching still works/);
+});
+
+test('no server address configured (as shipped): free mode is unavailable and nothing is contacted', async () => {
+  assert.match(original, /export const BACKEND_URL = '';/, 'the repo ships without a server address');
+  // a fresh Node process loads the real (empty) config
+  const { execFileSync } = await import('node:child_process');
+  const code = `
+    globalThis.chrome = { storage: { local: { get: async () => ({}), set: async () => {} } } };
+    let called = false; globalThis.fetch = async () => { called = true; };
+    const AI = await import(${JSON.stringify(new URL('../lib/ai.js', import.meta.url).href)});
+    let msg = ''; try { await AI.testGemini({}); } catch (e) { msg = e.message; }
+    console.log(JSON.stringify({ configured: AI.serviceConfigured(), available: AI.aiAvailable({}), called, msg }));`;
+  const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }).trim().split('\n').pop());
+  assert.deepEqual([out.configured, out.available, out.called], [false, false, false]);
+  assert.match(out.msg, /isn't set up in this version/);
 });
 
 test('off mode never sends anything', async () => {

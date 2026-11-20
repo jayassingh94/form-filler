@@ -1,5 +1,5 @@
 import { loadVault, lock, isSetUp } from '../lib/vault.js';
-import { aiMode, quotaToday, quotaLimit } from '../lib/ai.js';
+import { aiMode, quotaToday, quotaLimit, serviceConfigured } from '../lib/ai.js';
 import { showLock, onLocked } from '../lib/lockui.js';
 import { sitePattern } from '../lib/site.js';
 
@@ -39,6 +39,7 @@ async function boot() {
   const left = mode === 'service' ? await quotaToday() : null;
   const note = mode === 'off' ? 'AI matching is off: using offline keyword matching.'
     : mode === 'own' && !vault.settings.apiKey ? 'No Gemini key saved: using offline keyword matching.'
+    : mode === 'service' && !serviceConfigured() ? 'Using offline keyword matching (free AI not set up in this version).'
     : mode === 'service' && left != null ? `Free AI: ${left} of ${await quotaLimit()} uses left today.`
     : '';
   $('#ai-note-text').textContent = note;
