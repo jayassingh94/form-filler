@@ -19,3 +19,4 @@ node_modules/
 
 # shareable example config
 !server/.env.example
+dist/

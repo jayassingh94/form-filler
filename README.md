@@ -26,7 +26,14 @@ A Chrome extension (Manifest V3) that fills web forms from encrypted profiles st
 4. Click **Load unpacked** and choose the `form-filler` folder (the one that contains `manifest.json`).
 5. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to **Form Filler**.
 6. The setup page opens automatically. **Create a PIN** of at least 6 characters (letters make it stronger). If you forget it, the data cannot be recovered.
-7. Optional, for smarter matching: go to **Settings**, paste a Gemini API key from https://aistudio.google.com/apikey, click **Test connection**, then **Save**. The model defaults to `gemini-3.5-flash-lite`. Without a key, a built-in offline keyword matcher is used and nothing is sent anywhere. If Gemini answers **503 (high demand)**, Form Filler retries up to 3 times (waiting about 1, 2 and 4 seconds), then tries `gemini-3.6-flash` once, and tells you when that fallback answered. Other errors (wrong key, quota) are shown straight away.
+7. **AI matching** (Settings → AI matching) has three options:
+   - **Form Filler AI (free)**, the default: no key needed, up to 10 uses a day. Requests go through Form Filler's server
+     (`server/`), which passes them to Google Gemini and stores nothing. It's only active in builds with a server address
+     (see *Publishing* below); until then, offline matching is used and nothing is contacted.
+   - **Use my own Gemini key** (https://aistudio.google.com/apikey): requests go straight to Google; the model defaults to `gemini-3.5-flash-lite`.
+   - **Off**: offline keyword matching only; nothing is ever sent.
+   In every mode, only the form's own labels (or, with your consent, a blank PDF page image) are sent, never your details.
+   If Gemini answers **503 (high demand)**, it is retried up to 3 times, then `gemini-3.6-flash` is tried once.
 
 After pulling new code, click the ↻ reload icon on the Form Filler card in `chrome://extensions`.
 
@@ -98,6 +105,15 @@ Notes:
 - AI box positions on real scans won't always be exact, so use the preview to adjust them.
 To regenerate the sample PDFs, run `node tests/make-sample-pdfs.mjs`.
 
+## Free AI server and publishing
+
+- `server/`: a small dependency-free Node server (deploy on Render with `render.yaml`) that proxies the fixed AI tasks to
+  Gemini with your `GEMINI_API_KEY`. It accepts only field labels, blank-page images or upload-rule text, stores nothing, logs no
+  content, and limits use to 10 calls per install per day, 30 per network and a global daily cap.
+- **`store/PUBLISHING.md`**: step-by-step guide to deploy the server and publish on the Chrome Web Store, with the listing text
+  (`store/listing.md`), privacy-practices answers, icons, screenshots and promo tiles in `store/`.
+- `scripts/set-backend.mjs` sets the server address; `scripts/package.mjs` builds the upload ZIP.
+
 ## Automated tests
 
 ```
@@ -130,7 +146,11 @@ popup ──"Fill"──► background worker ──inject──► page (conten
 | `popup/` | Profile picker and the Fill button |
 | `lib/site.js` | Tab URL → site permission pattern (ports ignored, e.g. `http://localhost/*`) |
 | `picker/` | "Pick from locker" window (extension iframe the page can't read) with resize |
-| `privacy.html` | Privacy policy |
+| `privacy.html` | Privacy policy (also served by the AI server at `/privacy`) |
+| `lib/ai.js`, `lib/gemini-core.js`, `lib/config.js` | AI modes (free server / own key / off); shared prompts, checks and retry used by the extension and the server; the server address |
+| `server/` | Free AI server (Node, no dependencies): `server.mjs`, `limits.mjs`; `render.yaml` deploys it |
+| `store/` | Web Store assets, listing text, privacy-practices answers and `PUBLISHING.md` |
+| `scripts/` | `set-backend.mjs`, `package.mjs` |
 | `pdf/` | Fill a PDF page: field detection, preview editor, writing the PDF |
 | `lib/pdfgeom.js` | Box maths, text layout (letter boxes), tick choice, offline blank finder |
 | `lib/imgedit.js`, `lib/imgproc.js` | Photo/signature editor: crop UI, exact resize, KB targeting, JPEG padding, signature clean-up |
