@@ -12,7 +12,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'u
 const config = fs.readFileSync(path.join(ROOT, 'lib/config.js'), 'utf8');
 const backend = (config.match(/BACKEND_URL = '([^']*)'/) || [])[1];
 if (!backend) console.warn('⚠  lib/config.js has no AI server address: the free AI will be off in this build.\n   Run: node scripts/set-backend.mjs https://<your-service>.onrender.com');
-else if (!manifest.host_permissions.some((h) => h.startsWith(backend))) { console.error(`✖ manifest.json has no host permission for ${backend}. Run scripts/set-backend.mjs.`); process.exit(1); }
+else if (!manifest.host_permissions.includes(`${new URL(backend).protocol}//${new URL(backend).hostname}/*`)) { console.error(`✖ manifest.json has no host permission for ${backend}. Run scripts/set-backend.mjs.`); process.exit(1); }
 const walk = (p) => fs.statSync(p).isDirectory() ? fs.readdirSync(p).flatMap((f) => walk(path.join(p, f))) : [p];
 const files = INCLUDE.flatMap((f) => walk(path.join(ROOT, f)));
 for (const f of files) {

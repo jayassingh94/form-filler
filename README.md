@@ -1,165 +1,149 @@
 # Form Filler
 
-A Chrome extension (Manifest V3) that fills web forms from encrypted profiles stored only on your computer.
+**Fill job, exam and admission application forms, and their PDFs, in one click. Your details stay encrypted on your computer.**
 
-- **My Profile**: personal, family, permanent and current address, contact, education (Class 10, Class 12, diploma, graduation, post-graduation, PhD, other), category, work experience and custom fields. You can keep several profiles (you, your spouse, and so on).
-- **Fill this form**: reads field labels, placeholders, names and dropdown/radio options. Gemini matches them to your profile *keys*, and your values are then filled in **locally**. Handles text boxes, dropdowns, radio buttons, checkboxes, date formats (DD/MM/YYYY, MM-DD-YYYY, DD-Mon-YYYY, native date pickers, separate day/month/year boxes) and dropdowns that load after another one changes. Fields it is sure about turn **green**; fields that are unsure or empty turn **yellow**.
-- **Document Locker**: stores your photo, signature, marksheets and certificates encrypted, with names and tags. A **📎 Pick from locker** button appears next to every upload field. The picker shows file size and dimensions, reads the form's KB and pixel limits, and can resize or compress images to fit.
-- **Photo & signature resizer**: in **📎 Pick from locker** (or Document Locker → *Crop & resize…*):
-  - **Size rules:** read from the page text next to the field, by AI from the page's instructions (text only, never the image), from an exam preset (IBPS, SSC, UPSC, RRB, NEET), or entered by hand.
-  - **Crop:** a movable box whose shape is locked to the target, plus rotate and "trim to signature".
-  - **Output:** resized to the exact pixels and compressed to land inside the KB range. Very small files are padded with empty metadata if needed.
-  - **Signatures:** the background is cleaned to pure white and the ink darkened.
-  - **Check, then attach:** the final size and dimensions are shown and checked before attaching.
-  - **Presets:** these are typical recent values. Always check the official notice.
-- **Fill a PDF**: open a PDF application form in the extension.
-  - **Fillable PDF:** if it has real form fields, they are filled directly and stay editable.
-  - **Flat or scanned PDF:** Gemini looks at the page images and finds each label with its blank line, character boxes or tick boxes (Sex, Category…). Your values are then written onto the PDF **locally**.
-  - **Before you download:** a preview lets you drag, resize and edit any box, or add text and ticks.
-- **Privacy**: AES-256-GCM encryption with a key derived from your PIN, auto-lock after 5 minutes, only labels are sent to the AI, password/card/CVV/bank/OTP/captcha fields are never filled, forms are never submitted, site access is asked for per site, plus backup/restore, "Delete all data" and no tracking. See [privacy.html](privacy.html).
+Form Filler is a Chrome extension for people who fill the same details into form after form: name, father's name, date of
+birth, addresses, education, category, documents. Save them once, open any application form, click **Fill this form**,
+check the highlighted fields, and submit yourself.
 
-## Install (Load unpacked)
+![Filling a web application form in one click](store/screenshots/1-fill-web-forms.png)
 
-1. Download the code: `git clone https://github.com/jayassingh94/form-filler.git` (or use your existing folder).
-2. Open Chrome and go to `chrome://extensions`.
-3. Turn on **Developer mode** (top-right switch).
-4. Click **Load unpacked** and choose the `form-filler` folder (the one that contains `manifest.json`).
-5. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to **Form Filler**.
-6. The setup page opens automatically. **Create a PIN** of at least 6 characters (letters make it stronger). If you forget it, the data cannot be recovered.
-7. **AI matching** (Settings → AI matching) has three options:
-   - **Form Filler AI (free)**, the default: no key needed, up to 10 uses a day. Requests go through Form Filler's server
-     (`server/`), which passes them to Google Gemini and stores nothing. It's only active in builds with a server address
-     (see *Publishing* below); until then, offline matching is used and nothing is contacted.
-   - **Use my own Gemini key** (https://aistudio.google.com/apikey): requests go straight to Google; the model defaults to `gemini-3.5-flash-lite`.
-   - **Off**: offline keyword matching only; nothing is ever sent.
-   In every mode, only the form's own labels (or, with your consent, a blank PDF page image) are sent, never your details.
-   If Gemini answers **503 (high demand)**, it is retried up to 3 times, then `gemini-3.6-flash` is tried once.
+## Features
 
-After pulling new code, click the ↻ reload icon on the Form Filler card in `chrome://extensions`.
+**Web forms**
+- Fills text boxes, dropdowns, radio buttons and checkboxes, including dates in any format (DD/MM/YYYY, separate
+  day/month/year boxes, date pickers) and dropdowns that load after another one (State → District)
+- Understands common labels and their variations: “Name of the Candidate”, “Father's/Husband's Name”, “S/o”,
+  “Address for Correspondence”, Hindi labels (नाम, पिता का नाम, पता…)
+- Green = filled, yellow = please check. **Never submits a form**, and never touches password, card, CVV, bank, OTP or
+  captcha fields
 
-## Try it on the sample form
+**PDF forms** (*Fill a PDF*)
+- Fillable PDFs are filled directly and stay editable
+- Flat and scanned PDFs: finds the blank lines, boxes and tick boxes and writes your values on them, including
+  forms with underscores, bilingual (English / Hindi) labels and letter-by-letter boxes
+- Officer sections (“Certifying Officer”, “For office use only”) are left blank
+- A tidy side panel lists every field: edit any value, drag boxes, then download
+- Hindi text is drawn correctly (bundled Noto Sans Devanagari, proper shaping)
 
-1. Serve the test page (from the `form-filler` folder):
-   ```
-   cd test && python3 -m http.server 8765
-   ```
-   Then open http://localhost:8765/sample-form.html.
-   (Opening the file directly as `file://` also works, but only after you turn on **Allow access to file URLs** on the extension's Details page.)
-2. In Form Filler's **My Profile** tab, click **Add a demo profile with fake data** at the bottom (or enter your own details).
-3. In **Document Locker**, add any photo (JPG/PNG) and a PDF.
-4. On the sample form, click the Form Filler icon, choose the **Demo (fake data)** profile, and click **Fill this form**.
-   - The first time on a site, Chrome asks to allow access to it. Click **Allow**. If the popup closes while that dialog shows, click **Fill this form** again.
-5. What you should see:
-   - About 55 fields turn green, including the education table, the District dropdown (which loads after State), the gender/PwBD radio buttons, and the DOB in three formats.
-   - The declaration checkbox turns **yellow**. Tick it yourself.
-   - **Section 9 (password, card, CVV, bank, IFSC, OTP, captcha) stays empty.**
-   - The yellow "form was submitted" banner **never** appears.
-6. Next to **Recent Photograph**, click **📎 Pick from locker**. The picker shows "20–50 KB · 200×230 px" and warns that your photo doesn't fit. Click **Resize…**, then **Preview**, then **Attach resized**, and the field shows `…_200x230.jpg`.
-7. Click **🔒 Lock** in the popup and try filling again: it asks for your PIN. Leaving it idle for 5 minutes also locks it.
+**Photos, signatures and documents**
+- An encrypted **Document Locker** for your photo, signature, marksheets and certificates
+- **📎 Pick from locker** appears next to every upload field
+- Crop and resize photos and signatures to the exact pixels and KB range the form asks for (read from the page, or
+  presets for IBPS, SSC, UPSC, RRB, NEET), and clean signatures to a white background, all on your computer
 
-## Try the photo & signature resizer
+**Everything else**
+- Several profiles (you, your family), encrypted backup and restore, “Delete all data”
+- Works offline; AI matching is optional (see below)
 
-1. On `test/sample-form.html`, click **Fill this form**, then **📎 Pick from locker** next to *Recent Photograph*.
-2. Click **Crop & resize…** on a photo (or **From this computer…**). The rules *200 × 230 px, 20–50 KB* are read from the page.
-   Drag the box to choose the crop, check the result on the right, and click **Attach to the form**.
-3. Next to *Signature (see upload instructions)*, open a signature image. With a Gemini key, click **✨ Read rules from this page with AI**,
-   check the list of text snippets that will be sent, and click **Send & read rules** (or pick a preset). Click **Trim to signature**, adjust the
-   *Paper threshold* if needed, and attach.
-
-## Try "Fill a PDF"
-
-1. Open the Form Filler popup and click **Fill a PDF** (or use the link at the top of the settings page).
-2. Choose a profile, click **Open a PDF form…** and pick one of these:
-   - `test/sample-acroform.pdf`: a form with real fields. Click **Fill the form fields**.
-   - `test/sample-flat-form.pdf`: a flat form with lines, letter boxes and tick boxes. With a Gemini key, tick
-     *I understand…* and click **Detect blanks with AI**. Without one, click **Detect offline** (tick boxes then need **+ Tick**).
-   - `test/sample-scanned-form.pdf`: the same form as an image only (like a scan). This needs AI detection or manual boxes.
-3. Check the boxes: green means filled, yellow means check it or fill it yourself. Drag a box by its ⠿ handle, resize it from the corner,
-   click to edit its text, change which profile value it uses, set letter boxes or capitals, or add **+ Text** / **+ Tick**.
-4. Click **Download filled PDF** (or **Save to locker**). Check it before submitting.
-
-Notes:
-- **How boxes are matched:** common label wordings are recognised directly. Examples: "Full Name", "Name of Applicant", "Father’s Name", "S/o", "Mother's Name", "Permanent Address", "Address for Correspondence", "Present Address". Gemini's answer is checked against them, and the first match that has a value in your profile wins.
-- **Values are built on your computer:**
-  - Full Name is first + middle + last.
-  - Addresses are joined neatly from house no./street, landmark, locality, city, district and "State - PIN", spread across the form's printed address lines.
-  - Names and places are written with proper capitals ("asha VERMA" → "Asha Verma").
-  - Text is 10–12 pt, and only shrinks if a box is too small.
-  - `test/sample-labels-form.pdf` has these labels for testing.
-- **Forms without blank lines** ("Name / नाम :" with empty space after it):
-  - Each value goes in the free space after the colon, or in the free band under the label if there's no room.
-  - Every box is checked against the page's printed text, so values never cover labels. Gemini's boxes are moved if they overlap.
-  - Values that only fit in smaller text are marked yellow.
-  - "Post applied for / आवेदित पद" is never filled with your name; add a custom field *Post applied for* if you want it filled.
-  - `test/sample-bilingual-form.pdf` is a sample of this layout.
-- **Officer sections** ("Certifying Officer", "Attested by", "For office use only", and the "Designation" / "Phone"
-  rows that follow them) are never filled from your profile. They are shown grey and left blank.
-- **Underlines in the text** ("Full Name : ______"): values sit exactly on them, and continuation lines of an address are
-  used in order. Gemini's boxes are snapped onto the printed line of their own label. `test/sample-identity-certificate.pdf`
-  is a regression sample.
-- **Hindi and Devanagari** (Marathi, Nepali, Sanskrit…) work, including mixed text like "आशा (Asha)". It is shaped properly
-  (conjuncts, ि, reph, ु/ँ) with the bundled Noto Sans Devanagari font and drawn as outlines, so it looks right in every
-  PDF viewer. Hindi drawn onto flat forms can't be selected or searched as text; in fillable fields the real Unicode value
-  is stored. One fillable field can't mix Hindi and English letters, and you'll be told if that happens. Other scripts
-  (Tamil, Bengali…) aren't supported yet.
-- AI box positions on real scans won't always be exact, so use the preview to adjust them.
-To regenerate the sample PDFs, run `node tests/make-sample-pdfs.mjs`.
-
-## Free AI server and publishing
-
-- `server/`: a small dependency-free Node server (deploy on Render with `render.yaml`) that proxies the fixed AI tasks to
-  Gemini with your `GEMINI_API_KEY`. It accepts only field labels, blank-page images or upload-rule text, stores nothing, logs no
-  content, and limits use to 10 calls per install per day, 30 per network and a global daily cap.
-- **`store/PUBLISHING.md`**: step-by-step guide to deploy the server and publish on the Chrome Web Store, with the listing text
-  (`store/listing.md`), privacy-practices answers, icons, screenshots and promo tiles in `store/`.
-- `scripts/set-backend.mjs` sets the server address; `scripts/package.mjs` builds the upload ZIP.
-
-## Automated tests
-
-```
-node --test tests/
-```
-These cover sensitive-field detection, date formatting, dropdown matching, upload-limit parsing, offline matching, the encrypted vault (encryption at rest, wrong-PIN slowdown, auto-lock), and a check that the Gemini request never contains profile values or the API key in the URL.
-
-## How the data flows
-
-```
-popup ──"Fill"──► background worker ──inject──► page (content script)
-                       │                            │ scan: labels/options only
-                       │◄───────────────────────────┘
-                       ├──labels + generic key names──► Gemini (optional)
-                       │◄──────── field → key mapping ───┘
-                       ├─ decrypt profile, resolve values (locally)
-                       └──values──► page: fill + highlight (never submit)
-```
-
-| File | Role |
+| | |
 |---|---|
-| `manifest.json` | MV3 manifest. No host permissions at install except the Gemini API. `activeTab` lets the popup read the current tab's address; site access is requested when you click Fill |
-| `background.js` | Runs Fill, relays locker files, runs the auto-lock alarm |
-| `content/content.js` | Scans, fills and highlights fields; adds locker buttons (injected only when you click Fill) |
-| `content/fillcore.js` | Pure logic: sensitive-field rules, date formats, option matching, offline matcher |
-| `lib/crypto.js`, `lib/vault.js` | PBKDF2 + AES-GCM, encrypted storage, lock/unlock, backup, wipe |
-| `lib/schema.js` | Profile fields, generic key list for the AI, derived values (full name, age, full address…) |
-| `lib/ai.js` | Gemini request (labels only) |
-| `options/` | My Profile, Document Locker, Settings, Backup & data |
-| `popup/` | Profile picker and the Fill button |
-| `lib/site.js` | Tab URL → site permission pattern (ports ignored, e.g. `http://localhost/*`) |
-| `picker/` | "Pick from locker" window (extension iframe the page can't read) with resize |
-| `privacy.html` | Privacy policy (also served by the AI server at `/privacy`) |
-| `lib/ai.js`, `lib/gemini-core.js`, `lib/config.js` | AI modes (free server / own key / off); shared prompts, checks and retry used by the extension and the server; the server address |
-| `server/` | Free AI server (Node, no dependencies): `server.mjs`, `limits.mjs`; `render.yaml` deploys it |
-| `store/` | Web Store assets, listing text, privacy-practices answers and `PUBLISHING.md` |
-| `scripts/` | `set-backend.mjs`, `package.mjs` |
-| `pdf/` | Fill a PDF page: field detection, preview editor, writing the PDF |
-| `lib/pdfgeom.js` | Box maths, text layout (letter boxes), tick choice, offline blank finder |
-| `lib/imgedit.js`, `lib/imgproc.js` | Photo/signature editor: crop UI, exact resize, KB targeting, JPEG padding, signature clean-up |
-| `lib/presets.js` | Exam presets (IBPS, SSC, UPSC, RRB, NEET), with notes and the date they were compiled |
-| `lib/pdftext.js` | Writes Latin (Helvetica) + Devanagari (shaped with fontkit, drawn as outlines) text |
-| `vendor/` | pdf-lib (MIT), pdf.js (Apache-2.0), @pdf-lib/fontkit (MIT), regenerator-runtime (MIT), Noto Sans Devanagari (SIL OFL), bundled because extensions can't load remote code. See `vendor/README.txt` |
-| `test/sample-form.html` | Sample form for manual testing |
-| `test/sample-*.pdf` | Sample fillable, flat and scanned PDF forms |
+| ![Profile](store/screenshots/2-profile.png) | ![Fill a PDF](store/screenshots/3-fill-pdf.png) |
+| ![Photo and signature](store/screenshots/4-photo-signature.png) | ![Privacy settings](store/screenshots/5-privacy.png) |
 
-## Never commit personal data
+## Privacy approach
 
-All personal data lives inside Chrome's storage, not in this folder. `.gitignore` also blocks backup files (`form-filler-backup*.json`), `.env` files and key files in case you save them here.
+Form Filler is built so that **your details never leave your computer**.
+
+- **Stored locally, encrypted.** Profiles, documents and settings live only in your Chrome profile, encrypted with
+  AES-256-GCM using a key derived from your PIN (PBKDF2-SHA-256, 600,000 rounds). The key is kept only in memory and is
+  erased on lock, after 5 minutes without use, or when Chrome closes.
+- **Values are filled locally.** When AI is used, it only answers *which field is which*. It receives the form's own
+  text (labels, placeholders, option texts), generic field names like `personal.dob`, and, only after you agree, an
+  image of a **blank** PDF form. Your name, date of birth, address and other values are never sent.
+- **You choose the AI** (Settings → AI matching):
+  - **Form Filler AI (free)**: no key needed, 10 uses a day; requests go through a small server
+    ([`server/`](server)) that passes them to Google Gemini and **stores nothing** (no content logs)
+  - **Your own Gemini key**: requests go straight from your browser to Google
+  - **Off**: offline keyword matching only; nothing is ever sent
+- **No account, analytics, tracking or ads.** No remote code. Site access is requested only when you click
+  *Fill this form* on a site.
+
+Full details: **[Privacy policy](privacy.html)**.
+
+## Install
+
+### From the Chrome Web Store
+*Coming soon.*
+
+### Load unpacked (developer mode)
+1. Download this repository: **Code → Download ZIP** (then unzip), or `git clone https://github.com/jayassingh94/form-filler.git`
+2. Open `chrome://extensions` in Chrome and turn on **Developer mode** (top right)
+3. Click **Load unpacked** and choose the `form-filler` folder (the one with `manifest.json`)
+4. Pin Form Filler from the puzzle-piece menu
+5. The setup page opens: create a PIN (at least 6 characters; it can't be recovered if forgotten), then fill in
+   **My Profile**, or click *“Add a demo profile with fake data”* to try it out
+
+The free AI only works in builds that point at a deployed server (see below). Until then, choose **Use my own Gemini
+key** (free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) or use offline matching.
+
+### Try it on the sample forms
+```
+cd test && python3 -m http.server 8765
+```
+Open <http://localhost:8765/sample-form.html>, click the Form Filler icon → **Fill this form**.
+For PDFs, open **Fill a PDF** from the popup and try `test/sample-flat-form.pdf`, `test/sample-bilingual-form.pdf`,
+`test/sample-identity-certificate.pdf` or `test/sample-acroform.pdf`.
+
+## Run the AI server
+
+The server is plain Node (20+), with no dependencies.
+
+**Locally**
+```
+cp server/.env.example server/.env        # then put your key in server/.env
+export $(grep -v '^#' server/.env | xargs) && node server/server.mjs
+# → http://localhost:8787/healthz , /privacy , POST /v1/ai
+```
+To use a local server from the extension: `node scripts/set-backend.mjs http://localhost:8787` and reload the extension.
+
+**On Render (free plan)**
+1. Render → **New → Blueprint** → this repository (it reads [`render.yaml`](render.yaml))
+2. Set `GEMINI_API_KEY` in the service's *Environment* tab (never commit it)
+3. Point the extension at it: `node scripts/set-backend.mjs https://<your-service>.onrender.com`
+
+| Variable | Default | |
+|---|---|---|
+| `GEMINI_API_KEY` | required | Gemini key used by the server |
+| `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` | `gemini-3.5-flash-lite` / `gemini-3.6-flash` | model, and fallback when Gemini answers 503 |
+| `DAILY_LIMIT_PER_INSTALL` · `DAILY_LIMIT_PER_IP` · `GLOBAL_DAILY_CAP` | `10` · `30` · `1000` | daily limits (in memory only) |
+| `ALLOWED_ORIGINS` | empty | e.g. `chrome-extension://<extension id>` to accept only your extension |
+
+The server accepts only three fixed request types (field labels, a blank page image, upload-rule text), builds the
+prompt itself, masks e-mails and phone numbers as a safety net, and logs only time, request type, status and duration.
+
+Publishing to the Chrome Web Store, step by step: **[store/PUBLISHING.md](store/PUBLISHING.md)**.
+
+## Development
+
+```
+node --test tests/               # unit and server tests
+node scripts/package.mjs         # build dist/form-filler-<version>.zip for the Web Store
+```
+
+| Path | What's there |
+|---|---|
+| `manifest.json`, `background.js` | Manifest V3 extension, fill orchestration |
+| `content/` | in-page scanning, filling, highlights, locker buttons (`fillcore.js` holds the shared matching rules) |
+| `lib/` | encrypted vault, profile schema, AI modes (`ai.js`, `gemini-core.js`), PDF text/geometry, image tools |
+| `popup/`, `options/`, `pdf/`, `picker/` | popup, settings & profile pages, Fill a PDF, Pick from locker |
+| `server/` | the free AI server (`server.mjs`, `limits.mjs`) |
+| `store/` | Web Store icons, screenshots, promo tiles, listing text, publishing guide |
+| `test/`, `tests/` | sample forms and PDFs, automated tests |
+| `vendor/` | bundled third-party code and fonts (see below) |
+
+## Third-party components
+
+Bundled in `vendor/` under their own licenses: [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0),
+[pdf-lib](https://github.com/Hopding/pdf-lib) (MIT), [@pdf-lib/fontkit](https://github.com/Hopding/fontkit) (MIT),
+[regenerator-runtime](https://github.com/facebook/regenerator) (MIT) and
+[Noto Sans Devanagari](https://github.com/notofonts/devanagari) (SIL Open Font License 1.1).
+`test/sample-identity-certificate.pdf` is a blank public application form used only as a test case.
+
+## License
+
+[MIT](LICENSE) © 2026 Jaya Singh
+
+---
+
+**Made by Jaya Singh** · [LinkedIn](https://www.linkedin.com/in/jaya-singh-781a98149)
