@@ -181,6 +181,8 @@ function newItem(o) {
 
 /** Candidate profile keys for a label, best first: custom field, precise label rule, AI's key, keyword guess. */
 function candidateKeys(label, aiKey) {
+  // "Post applied for": only ever from a custom field of yours, never your name
+  if (C.isPostApplied(label)) { const c = customKeyFor(label); return c ? [c] : []; }
   return [...new Set([customKeyFor(label), C.labelKey(label), aiKey, C.heuristicKey({ label })].filter(Boolean))];
 }
 
@@ -252,10 +254,28 @@ function resolveAddressGroups() {
     if (group.length === 1) {
       const it = group[0];
       const cap = G.lineCapacity(it.box.h * vp.height, size);
-      const r = G.distributeParts(parts, Array(cap).fill(widths[0]), size, measure);
-      it.text = r.lines.join('\n');
-      it.fontSize = r.size;
-      it.sure = !r.overflow;
+      const full = G.distributeParts(parts, Array(cap).fill(widths[0]), size, measure, G.MIN_READABLE);
+      if (!full.overflow) { it.text = full.lines.join('\n'); it.fontSize = full.size; it.sure = true; continue; }
+      // not enough room after the colon: the free band under the label, if there is one
+      if (it.altBox) {
+        const aw = it.altBox.w * vp.width - 3, ah = it.altBox.h * vp.height;
+        const r = G.distributeParts(parts, Array(G.lineCapacity(ah, G.MIN_READABLE)).fill(aw), G.MIN_READABLE + 0.5, measure);
+        if (!r.overflow) { it.box = it.altBox; it.text = r.lines.join('\n'); it.fontSize = r.size; it.sure = true; continue; }
+      }
+      // still tight: the complete address in smaller text (min 8 pt), else a shorter one; either way, check it
+      let best = G.distributeParts(parts, Array(cap).fill(widths[0]), size, measure);
+      it.note = 'Smaller text to fit: check it is readable';
+      if (best.overflow) {
+        for (const v of G.addressVariants(parts).slice(1)) {
+          best = G.distributeParts(v, Array(cap).fill(widths[0]), size, measure);
+          it.note = 'Shortened to fit: check the address';
+          if (!best.overflow) break;
+        }
+        if (best.overflow) it.note = 'Too long for the space';
+      }
+      it.text = best.lines.join('\n');
+      it.fontSize = best.size;
+      it.sure = false;
       continue;
     }
     const r = G.distributeParts(parts, widths, size, measure);
@@ -393,6 +413,36 @@ async function mapFields(descs) {
   return m;
 }
 
+/** Printed text of a page (cached), used to keep values off it. */
+async function pageText(p) {
+  p.text ??= await textItems(p);
+  return p.text;
+}
+
+/**
+ * Make each filled value fit its space without touching printed text: if it doesn't fit after the colon at a
+ * readable size, use the free band under the label; otherwise shrink (min 8 pt) and mark it to check.
+ */
+function fitAll() {
+  for (const it of items) {
+    if (it.kind !== 'text' || it.acro || it.cells > 1 || !it.text || it.edited) continue;
+    const vp = pages[it.page - 1].vp1;
+    const wPt = it.box.w * vp.width - 3, hPt = it.box.h * vp.height;
+    const size = it.fontSize || G.autoFontSize(hPt);
+    const widest = Math.max(...it.text.split('\n').map((l) => measure(l, G.MIN_READABLE)));
+    if (widest > wPt && it.altBox && !it.addrGroup) {
+      const aw = it.altBox.w * vp.width - 3;
+      if (measure(it.text, G.MIN_READABLE) <= aw) { it.box = it.altBox; it.fontSize = Math.min(size, G.autoFontSize(it.altBox.h * vp.height)); continue; }
+    }
+    const fit = G.fitFontSize(it.text, size, wPt, measure);
+    if (fit < G.MIN_READABLE || it.text.split('\n').some((l) => measure(l, fit) > wPt + 0.5)) {
+      it.sure = false; // smaller than 10 pt or still too long: check it
+      it.note ||= 'Smaller text to fit: check it is readable';
+    }
+    it.fontSize = fit;
+  }
+}
+
 /** Text items on a page, as normalised boxes. */
 async function textItems(p) {
   const tc = await p.pdfPage.getTextContent();
@@ -440,15 +490,22 @@ async function detectWithAI() {
   if (!apiKey) throw new Error('Add a Gemini API key in Settings first.');
   const catalog = keyCatalog(profile());
   items = items.filter((i) => i.edited); // keep boxes you placed by hand
-  let skipped = 0;
+  let skipped = 0, noRoom = 0;
   for (const p of pages) {
     progress(`Reading page ${p.num} of ${pages.length} with AI…`);
     const raw = await detectFlatPage(apiKey, model, await pageImage(p.num), 'image/jpeg', catalog);
+    const text = await pageText(p);
     for (const r of raw) {
       if (r.kind === 'skip') continue;
       if (C.isSensitive({ label: r.label })) { skipped++; continue; }
-      const box = G.fromBox2d(r.box_2d);
+      let box = G.fromBox2d(r.box_2d);
       if (!box) continue;
+      // Never write over printed text: move text boxes that cover a label into the free space after it.
+      if (r.kind !== 'checkbox' && text.length) {
+        const fixed = G.repairBox(box, text);
+        if (!fixed) { noRoom++; continue; }
+        box = fixed;
+      }
       const keys = r.kind === 'checkbox'
         ? [...new Set([r.key, C.labelKey(r.label), C.heuristicKey({ label: r.label })].filter(Boolean))]
         : candidateKeys(r.label, r.key);
@@ -466,8 +523,9 @@ async function detectWithAI() {
   resolveCheckGroups();
   groupAddresses();
   resolveAddressGroups();
+  fitAll();
   renderAll();
-  return summary(skipped);
+  return summary(skipped) + (noRoom ? ` ${noRoom} box(es) had no free space next to their label and were left out; add them with "+ Text".` : '');
 }
 
 // ---------------- flat path: offline (text layer) ----------------
@@ -477,7 +535,7 @@ async function detectOffline() {
   items = items.filter((i) => i.edited);
   let found = 0, skipped = 0;
   for (const p of pages) {
-    const text = await textItems(p);
+    const text = await pageText(p);
     const rules = await printedRules(p);
     const used = new Set();
     // labels without a colon count when we recognise them ("Full Name", "Date of Birth", "Mobile No.")
@@ -490,13 +548,15 @@ async function detectOffline() {
       const key = keys[0] || null;
       // put the value on the printed line next to the label, if there is one
       const rule = ruleForLabel(b.box, rules, used);
+      // without a colon or a printed line, only trust precise labels ("Full Name"), not keyword guesses
+      if (!b.colon && !rule && !customKeyFor(b.label) && !C.labelKey(b.label)) continue;
       const lines = [];
       if (rule) {
         lines.push(ruleBox(rule, p));
         if (isAddressKey(key)) for (const r of continuationRules(rule, rules, used, text)) lines.push(ruleBox(r, p));
-      } else lines.push(isAddressKey(key) ? growAddressBox(b.box, text) : b.box);
+      } else lines.push(b.box);
       lines.forEach((box, n) => {
-        const it = newItem({ page: p.num, box, label: n ? '' : b.label, key, keys: n ? [key] : keys, conf: key ? 'high' : 'low', upper });
+        const it = newItem({ page: p.num, box, altBox: !rule && !n ? b.alt : null, label: n ? '' : b.label, key, keys: n ? [key] : keys, conf: key ? 'high' : 'low', upper });
         applyValue(it);
         items.push(it);
       });
@@ -506,6 +566,7 @@ async function detectOffline() {
   if (!found) throw new Error('No text labels found. This looks like a scanned form: use AI detection, or add boxes yourself with "+ Text" / "+ Tick".');
   groupAddresses();
   resolveAddressGroups();
+  fitAll();
   renderAll();
   return summary(skipped) + ' Tick boxes are not detected offline; add them with "+ Tick".';
 }
@@ -552,14 +613,6 @@ function ruleBox(r, p) {
   return { x: r.x0, y: r.y - h, w: r.x1 - r.x0, h };
 }
 
-/** Offline: an address usually gets several lines; extend its box down to just above the next printed text. */
-function growAddressBox(box, text) {
-  const below = text.filter((t) => t.y > box.y + box.h * 0.6).sort((a, b) => a.y - b.y)[0];
-  const limit = below ? below.y - 0.004 - box.y : box.h * 3.2;
-  const h = Math.min(limit, box.h * 3.2);
-  return h > box.h * 1.6 ? { ...box, h } : box;
-}
-
 function summary(skipped) {
   const filled = items.filter((i) => (i.kind === 'text' ? i.text : i.checked) && i.sure).length;
   const review = items.filter((i) => i.kind === 'text' && !i.spare && (!i.text || !i.sure)).length;
@@ -597,6 +650,7 @@ function renderAll() {
 }
 
 function isGreen(it) {
+  if (it.kind === 'text' && it.text && pages[it.page - 1]?.text && G.overlapsText(it.box, pages[it.page - 1].text)) return false;
   return it.kind === 'check' ? it.sure : !!it.text && it.sure;
 }
 
@@ -613,7 +667,8 @@ function renderItem(it) {
   const empty = it.kind === 'text' ? !it.text : false;
   el.className = `ov ${it.kind === 'check' ? 'check' : 'text'} ${it.spare ? 'spare' : isGreen(it) ? '' : 'y'} ${it.acro ? 'acro' : ''} ${selected === it.id ? 'sel' : ''} ${empty && !$('#show-empty').checked ? 'hide' : ''}`;
   Object.assign(el.style, { left: it.box.x * 100 + '%', top: it.box.y * 100 + '%', width: it.box.w * 100 + '%', height: it.box.h * 100 + '%' });
-  el.title = `${it.label || 'Text'}${it.key ? ` (${it.key})` : ''}`;
+  const onText = it.kind === 'text' && it.text && p.text && G.overlapsText(it.box, p.text);
+  el.title = `${it.label || 'Text'}${it.key ? ` (${it.key})` : ''}${onText ? ' ⚠ overlaps printed text' : it.note ? ` ⚠ ${it.note}` : ''}`;
   const k = p.cssW / p.vp1.width; // css px per pt
   const hPt = it.box.h * p.vp1.height;
   if (it.kind === 'check') {

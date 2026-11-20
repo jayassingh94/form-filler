@@ -1,0 +1,113 @@
+{
+ "page": {
+  "w": 612,
+  "h": 792
+ },
+ "items": [
+  {
+   "label": "Name of the Post applied for / आवेदित पद का नाम",
+   "kind": "text",
+   "key": "personal.fullName",
+   "confidence": "high",
+   "box_2d": [
+    107,
+    155,
+    125,
+    686
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 335.2265
+  },
+  {
+   "label": "Name / नाम",
+   "kind": "text",
+   "key": "personal.fullName",
+   "confidence": "high",
+   "box_2d": [
+    134,
+    155,
+    152,
+    654
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 156.79350000000002
+  },
+  {
+   "label": "Father’s/Husband’s Name / पिता/पति का नाम",
+   "kind": "text",
+   "key": "family.fatherName",
+   "confidence": "high",
+   "box_2d": [
+    160,
+    391,
+    178,
+    882
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 312.64549999999997
+  },
+  {
+   "label": "Date of Birth / जन्म तिथि",
+   "kind": "text",
+   "key": "personal.dob",
+   "confidence": "high",
+   "box_2d": [
+    187,
+    362,
+    205,
+    882
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 215.50300000000001
+  },
+  {
+   "label": "Address for Communication / संचार के लिए पता",
+   "kind": "text",
+   "key": "currentAddress.full",
+   "confidence": "high",
+   "box_2d": [
+    212,
+    537,
+    230,
+    882
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 322.5605
+  },
+  {
+   "label": "Mobile Number / मोबाइल नंबर",
+   "kind": "text",
+   "key": "contact.mobile",
+   "confidence": "high",
+   "box_2d": [
+    239,
+    401,
+    256,
+    882
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 239.7105
+  },
+  {
+   "label": "Email ID / ईमेल आईडी",
+   "kind": "text",
+   "key": "email",
+   "confidence": "high",
+   "box_2d": [
+    265,
+    339,
+    283,
+    882
+   ],
+   "cells": 0,
+   "uppercase": false,
+   "colonX": 201.71200000000002
+  }
+ ]
+}

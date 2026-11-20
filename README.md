@@ -79,6 +79,12 @@ Notes:
   - Names and places are written with proper capitals ("asha VERMA" → "Asha Verma").
   - Text is 10–12 pt, and only shrinks if a box is too small.
   - `test/sample-labels-form.pdf` has these labels for testing.
+- **Forms without blank lines** ("Name / नाम :" with empty space after it):
+  - Each value goes in the free space after the colon, or in the free band under the label if there's no room.
+  - Every box is checked against the page's printed text, so values never cover labels. Gemini's boxes are moved if they overlap.
+  - Values that only fit in smaller text are marked yellow.
+  - "Post applied for / आवेदित पद" is never filled with your name; add a custom field *Post applied for* if you want it filled.
+  - `test/sample-bilingual-form.pdf` is a sample of this layout.
 - **Hindi and Devanagari** (Marathi, Nepali, Sanskrit…) work, including mixed text like "आशा (Asha)". It is shaped properly
   (conjuncts, ि, reph, ु/ँ) with the bundled Noto Sans Devanagari font and drawn as outlines, so it looks right in every
   PDF viewer. Hindi drawn onto flat forms can't be selected or searched as text; in fillable fields the real Unicode value

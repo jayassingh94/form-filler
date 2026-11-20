@@ -4,7 +4,10 @@
 //   tests/fixtures/flat-layout.json  true positions of every blank on the flat form (for tests)
 // Run: node tests/make-sample-pdfs.mjs
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import '../vendor/regenerator-runtime/runtime.js';
 import { PDFDocument, StandardFonts, rgb } from '../vendor/pdf-lib/pdf-lib.esm.min.js';
+const fontkit = createRequire(import.meta.url)('../vendor/fontkit/fontkit.umd.min.js');
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const W = 595, H = 842; // A4
@@ -170,7 +173,56 @@ async function labels() {
   fs.writeFileSync(ROOT + 'tests/fixtures/labels-layout.json', JSON.stringify({ page: { w: W, h: H }, items }, null, 1));
 }
 
+// Bilingual government-style form without blank lines (labels "Name / नाम :" with empty space after the
+// colon), modelled on an ICMR consultant application form. Labels are drawn in pieces, like real PDFs.
+async function bilingual() {
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+  const PW = 612, PH = 792;
+  const page = doc.addPage([PW, PH]);
+  const f = await doc.embedFont(StandardFonts.Helvetica);
+  const fb = await doc.embedFont(StandardFonts.HelveticaBold);
+  const hi = await doc.embedFont(fs.readFileSync(ROOT + 'vendor/fonts/NotoSansDevanagari-Regular.ttf'), { subset: true });
+  const top = (y) => PH - y; // y measured from the top like the original
+  const t = (str, x, y, font = f, size = 11.5) => { page.drawText(str, { x, y: top(y), size, font }); return x + font.widthOfTextAtSize(str, size); };
+  const b2d = (x0, y0, x1, y1) => [Math.round((y0 / PH) * 1000), Math.round((x0 / PW) * 1000), Math.round((y1 / PH) * 1000), Math.round((x1 / PW) * 1000)];
+  const items = [];
+  t('Application Form', 255, 66, fb, 14);
+  const row = (n, en, hiText, y, key, aiBox) => {
+    t(`${n}.`, 77, y);
+    let x = t(en + ' /', 95, y);
+    x = t(hiText, x + 3, y, hi, 11);
+    const colonX = t(':', x + 3, y) ;
+    items.push({ label: `${en} / ${hiText}`, kind: 'text', key, confidence: 'high', box_2d: aiBox ? b2d(...aiBox(colonX)) : b2d(colonX + 6, y - 11, 540, y + 3), cells: 0, uppercase: false, colonX });
+  };
+  // AI mistakes on purpose: boxes on top of labels, and the post field mapped to the applicant's name
+  row(1, 'Name of the Post applied for', 'आवेदित पद का नाम', 96, 'personal.fullName', () => [95, 85, 420, 99]);
+  row(2, 'Name', 'नाम', 117, 'personal.fullName', () => [95, 106, 400, 120]);
+  row(3, 'Father\u2019s/Husband\u2019s Name', 'पिता/पति का नाम', 138, 'family.fatherName', () => [239, 127, 540, 141]);
+  row(4, 'Date of Birth', 'जन्म तिथि', 159, 'personal.dob');
+  row(5, 'Address for Communication', 'संचार के लिए पता', 179, 'currentAddress.full');
+  row(6, 'Mobile Number', 'मोबाइल नंबर', 200, 'contact.mobile');
+  row(7, 'Email ID', 'ईमेल आईडी', 221, 'email');
+  t('8.', 77, 265);
+  t('Academic Qualifications indicating subject, year of passing, Division (as per Essential', 95, 265);
+  let x = t('Qualifications of the Advertisement) /', 95, 279);
+  t('शैक्षणिक योग्यता जिसमें विषय, उत्तीर्ण होने का वर्ष, डिवीजन', x + 3, 279, hi, 11);
+  t('(विज्ञापन की आवश्यक योग्यता के अनुसार) दर्शाया गया हो', 95, 292, hi, 11);
+  t('9.', 77, 389);
+  x = t('Work Experience in chronological order beginning from first to last /', 95, 389);
+  t('पहले से अंतिम तक', x + 3, 389, hi, 11);
+  t('कालानुक्रमिक क्रम में कार्य अनुभव', 95, 402, hi, 11);
+  x = t('Copy of documents to be submitted with application form /', 95, 598);
+  t('आवेदन पत्र के साथ', x + 3, 598, hi, 11);
+  t('Proof of Date of birth / जन्म तिथि का प्रमाण'.split(' / ')[0] + ' /', 95, 625);
+  t('Education qualification /', 95, 639);
+  t('Experience certificates/testimonials /', 95, 653);
+  fs.writeFileSync(ROOT + 'test/sample-bilingual-form.pdf', await doc.save());
+  fs.writeFileSync(ROOT + 'tests/fixtures/bilingual-layout.json', JSON.stringify({ page: { w: PW, h: PH }, items }, null, 1));
+}
+
 await flat();
 await acro();
 await labels();
+await bilingual();
 console.log('wrote sample PDFs in test/ and layouts in tests/fixtures/');

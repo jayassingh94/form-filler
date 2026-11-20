@@ -242,6 +242,23 @@
       .replace(/[\s:\-–_.]+$/, '').trim();
   }
 
+  // "Name of the Post applied for / आवेदित पद का नाम" is the job, never your name.
+  const POST_APPLIED = /\bpost\s*(applied|sought|for which)|\bapplied\s*for\b|\bname of (the )?post\b|\bposition\s*(applied|sought)|\bdesignation\s*applied|\bvacancy\b|आवेदित\s*पद|पद\s*का\s*नाम|पद\s*जिसके|आवेदन\s*किया\s*गया\s*पद/i;
+  function isPostApplied(label) { return POST_APPLIED.test(String(label || '').replace(/[\u2018\u2019]/g, "'")); }
+
+  // Hindi-only labels: translate the common words so the same rules apply.
+  const HI_WORDS = [
+    [/जन्म\s*(की\s*)?तिथि|जन्मतिथि/g, ' date of birth '], [/स्थायी/g, ' permanent '], [/पत्राचार|पत्र\s*व्यवहार|संचार/g, ' correspondence '],
+    [/वर्तमान/g, ' present '], [/पता/g, ' address '], [/पिता/g, ' father '], [/पति/g, ' husband '], [/माता/g, ' mother '],
+    [/नाम/g, ' name '], [/मोबाइल/g, ' mobile '], [/ई-?मेल/g, ' email ']
+  ];
+  function translateHindi(n) {
+    if (/[a-z]/i.test(n) || !/[\u0900-\u097F]/.test(n)) return n;
+    let t = n;
+    for (const [re, en] of HI_WORDS) t = t.replace(re, en);
+    return t.replace(/[\u0900-\u097F]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
   const NOT_PERSON = /\b(school|college|institut\w*|universit\w*|board|bank|branch|company|employer|organi[sz]ation|firm|village|city|town|district|state|country|post ?office|police|exam\w*|course|degree|hospital|nominee|user ?name|login|nick ?name|account|file|document|post|designation|scheme|project)\b/;
 
   /**
@@ -249,7 +266,8 @@
    * "Father’s Name", "S/o", "Address for Correspondence", "Permanent Address"…). Null if unsure.
    */
   function labelKey(label) {
-    const n = normLabel(label);
+    if (isPostApplied(label)) return null;
+    const n = translateHindi(normLabel(label));
     if (!n) return null;
     // "Correspondence address same as permanent" / "Same as above" is the tick box, not an address
     if (/\bsame as\b|\bsimilar to\b|\bcopy (from|of)\b/.test(n) && /permanent|above|address/.test(n)) return 'currentAddress.sameAsPermanent';
@@ -356,9 +374,11 @@
   ];
 
   function heuristicKey(f) {
+    if (isPostApplied(f.label) || (!f.label && isPostApplied(f.placeholder))) return null;
     const precise = labelKey(f.label) || (!f.label ? labelKey(f.placeholder) : null);
     if (precise) return precise;
-    const label = humanize([f.label, f.placeholder, f.name, f.idAttr].filter(Boolean).join(' ')).toLowerCase();
+    const shown = f.label && !/[a-z]/i.test(f.label) ? translateHindi(String(f.label).toLowerCase()) : f.label;
+    const label = humanize([shown, f.placeholder, f.name, f.idAttr].filter(Boolean).join(' ')).toLowerCase();
     const ctx = (label + ' ' + humanize(f.section).toLowerCase()).trim();
     const own = label;
     const first = (rules, s) => { for (const [re, k] of rules) if (re.test(s)) return k; return null; };
@@ -433,7 +453,7 @@
   const api = {
     humanize, norm, isSensitive, detectDateFormat, formatDate, nativeDateValue,
     matchOption, isPlaceholderOption, toBool, parseUploadRequirements, heuristicKey, MONTHS,
-    normLabel, labelKey, normalizeKey, properCase
+    normLabel, labelKey, normalizeKey, properCase, isPostApplied
   };
   root.FFCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
