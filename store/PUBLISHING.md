@@ -64,11 +64,11 @@ node scripts/set-backend.mjs https://<your-service>.onrender.com
 node --test tests/
 
 # B3. build the upload
-node scripts/package.mjs          # → dist/form-filler-1.1.0.zip
+node scripts/package.mjs          # → dist/form-filler-1.1.1.zip
 ```
 
 B4. Try the built extension once: `chrome://extensions` → Developer mode → **Load unpacked** → choose a folder where you
-unzipped `dist/form-filler-1.1.0.zip`. In **Settings → AI matching** keep “Form Filler AI (free)”, click **Test connection**
+unzipped `dist/form-filler-1.1.1.zip`. In **Settings → AI matching** keep “Form Filler AI (free)”, click **Test connection**
 (it may take up to a minute the first time), then fill `test/sample-form.html` (see the main README).
 
 B5. Commit the address change: `git commit -am "Set AI server address" && git push`.
@@ -83,7 +83,7 @@ B5. Commit the address change: `git commit -am "Set AI server address" && git pu
 3. Under **Account**, fill in the publisher name and contact e-mail (shown to users as the support contact).
 
 ### C2. Upload
-1. **Items → New item** → upload `dist/form-filler-1.1.0.zip`.
+1. **Items → New item** → upload `dist/form-filler-1.1.1.zip`.
 
 ### C3. Store listing tab
 1. **Description**: paste the *Full description* from `store/listing.md`, and replace `YOUR-SERVICE` with your address.

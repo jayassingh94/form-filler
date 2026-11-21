@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Form Filler: Private Autofill for Application Forms & PDFs",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Fill job & exam application forms and PDFs in one click. Your details stay encrypted on your computer. Hindi supported.",
   "permissions": [
     "storage",
