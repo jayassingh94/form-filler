@@ -1,8 +1,8 @@
 body { width: 360px; min-height: 120px; background: var(--bg); }
 
 .pop-head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
-  height: 56px; padding: 0 var(--s3) 0 var(--s4); background: var(--panel); border-bottom: 1px solid var(--line);
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  height: 58px; padding: 3px var(--s3) 0 var(--s4); background: var(--header); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line);
 }
 .pop-head .wordmark .name { font-size: 15px; }
 
@@ -18,7 +18,7 @@ body { width: 360px; min-height: 120px; background: var(--bg); }
 @keyframes ff-spin { to { transform: rotate(360deg); } }
 
 .ai-note { display: flex; align-items: center; gap: var(--s2); font-size: 12px; line-height: 16px; color: var(--muted); margin-top: -2px; }
-.ai-note .pulse { width: 6px; height: 6px; border-radius: 50%; background: #10b981; flex: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, .18); }
+.ai-note .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--success-dot); flex: none; box-shadow: 0 0 0 3px var(--success-soft); }
 .ai-note.off .pulse { background: var(--faint); box-shadow: none; }
 .ai-note .link { margin-left: auto; font-size: 12px; }
 

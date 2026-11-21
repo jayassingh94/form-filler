@@ -138,13 +138,15 @@ const page = await composer.newPage();
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
 const img = (b64) => `data:image/png;base64,${b64}`;
 const frame = (title, sub, inner) => `<html><head><style>
-  body { margin:0; width:1280px; height:800px; overflow:hidden; font-family: Inter, -apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
-    background: radial-gradient(900px 420px at 80% -10%, #c7d2fe 0%, transparent 70%), linear-gradient(160deg, #f5f6ff 0%, #eef0ff 55%, #e4e7fe 100%); color:#111827; }
-  header { padding: 36px 56px 0; }
+  body { margin:0; width:1280px; height:800px; overflow:hidden; font-family: Inter, -apple-system,"Segoe UI",Roboto,system-ui,sans-serif; color:#f4f3fa;
+    background: radial-gradient(700px 360px at 92% -8%, rgba(212,90,154,.42), transparent 70%), radial-gradient(800px 420px at 8% -20%, rgba(59,75,216,.45), transparent 70%),
+      radial-gradient(700px 300px at 50% 120%, rgba(240,135,106,.25), transparent 70%), #0f1226; }
+  body::before { content:''; position:absolute; left:0; right:0; top:0; height:4px; background: linear-gradient(120deg,#3b4bd8,#7b4fd6 36%,#d45a9a 70%,#f0876a); }
+  header { padding: 38px 56px 0; }
   h1 { margin:0; font-size:38px; letter-spacing:-.03em; font-weight:700; }
-  p { margin:10px 0 0; font-size:19px; line-height:1.45; color:#4b5563; max-width:1100px; }
+  p { margin:10px 0 0; font-size:19px; line-height:1.45; color:#cfcde3; max-width:1100px; }
   .stage { position:absolute; left:56px; right:56px; top:170px; bottom:0; }
-  .shot { position:absolute; border-radius:14px 14px 0 0; box-shadow:0 24px 60px rgba(49,46,129,.20), 0 0 0 1px rgba(49,46,129,.06); overflow:hidden; background:#fff; }
+  .shot { position:absolute; border-radius:14px 14px 0 0; box-shadow:0 30px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06), 0 0 80px -20px rgba(212,90,154,.4); overflow:hidden; background:#0f1226; }
   .shot img { display:block; width:100%; }
 </style></head><body><header><h1>${title}</h1><p>${sub}</p></header><div class="stage">${inner}</div></body></html>`;
 const pages = [

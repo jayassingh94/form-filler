@@ -56,9 +56,9 @@ label.btn.wide { display: flex; }
 .toolbar .toggle { margin-left: auto; color: var(--muted); }
 .legend { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .legend .dot + .dot { margin-left: 8px; }
-.dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; background: #cbd5e1; }
-.dot.g { background: #22c55e; }
-.dot.y { background: #eab308; }
+.dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+.dot.g { background: var(--success-dot); }
+.dot.y { background: var(--warn); }
 
 .field-list { display: flex; flex-direction: column; gap: 8px; }
 .field-list .pg { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; padding: 6px 2px 0; }

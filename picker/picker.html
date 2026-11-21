@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <title>Pick from locker</title>
+  <script src="../lib/theme.js"></script>
   <link rel="stylesheet" href="../lib/ui.css">
   <link rel="stylesheet" href="../lib/imgedit.css">
   <style>
     body { padding: 16px 20px 20px; min-height: 100vh; }
-    header { display: flex; align-items: center; gap: 10px; margin: -16px -20px 16px; padding: 12px 16px 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    header { position: relative; display: flex; align-items: center; gap: 10px; margin: -16px -20px 16px; padding: 12px 16px 12px 20px; background: var(--header); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); padding-top: 15px; }
     header h1 { flex: 1; font-size: 15px; line-height: 22px; margin: 0; font-weight: 650; }
     #field { margin-bottom: 4px; }
     .req { margin-bottom: 12px; }
@@ -28,7 +29,7 @@
   </style>
 </head>
 <body>
-  <header>
+  <header class="strip">
     <img src="../icons/icon48.png" width="24" height="24" alt="">
     <h1>Pick from locker</h1>
     <button id="close" class="ghost sm">Close</button>

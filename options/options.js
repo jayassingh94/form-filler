@@ -358,6 +358,20 @@ const msg = (el, text, cls = 'muted') => {
   if (cls === 'ok') toast(text.replace(/^✓\s*/, ''));
 };
 
+// Appearance (display preference only: localStorage, read by lib/theme.js before paint)
+{
+  let cur = 'dark';
+  try { cur = localStorage.getItem('ff_theme') || 'dark'; } catch { /* blocked */ }
+  const r = $(`#theme input[value="${cur}"]`) || $('#theme input[value="dark"]');
+  r.checked = true;
+  $('#theme').addEventListener('change', (e) => {
+    const t = e.target.value;
+    try { localStorage.setItem('ff_theme', t); } catch { /* blocked: applies to this page only */ }
+    document.documentElement.dataset.theme = t;
+    toast(`Theme: ${{ dark: 'Dark', light: 'Light', system: 'Match system' }[t]}`);
+  });
+}
+
 $('#highlight').onchange = async (e) => {
   vault.settings.highlight = e.target.checked;
   if (await persist()) msg($('#fill-msg'), e.target.checked ? '✓ Fields will be highlighted on the page.' : '✓ No highlighting: the summary appears in the popup.', 'ok');

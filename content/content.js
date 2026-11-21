@@ -5,8 +5,9 @@
   if (window.__formFiller) return;
   const C = globalThis.FFCore;
 
-  const GREEN = { outline: '2px solid #16a34a', bg: 'rgba(34,197,94,.16)' };
-  const YELLOW = { outline: '2px solid #eab308', bg: 'rgba(250,204,21,.22)' };
+  // optional highlights (Settings → Filling): soft mint = filled, warm amber = needs you; clear on any site
+  const GREEN = { outline: '2px solid #12a57a', bg: 'rgba(18,165,122,.12)' };
+  const YELLOW = { outline: '2px solid #e3962b', bg: 'rgba(245,165,36,.16)' };
   const SKIP_TYPES = new Set(['hidden', 'submit', 'button', 'image', 'reset', 'file', 'range', 'color', 'search']);
   const TEXTISH = new Set(['text', 'email', 'tel', 'number', 'url', '', 'date', 'month', 'datetime-local', 'week', 'time']);
 
@@ -406,19 +407,21 @@
     host.setAttribute('data-ff-ui', '');
     const root = host.attachShadow({ mode: 'closed' });
     root.innerHTML = `<style>
-      .p{position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:320px;background:#fff;color:#1c2430;
-         border:1px solid #d0d7de;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:12px 14px;
-         font:13px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-      b{display:block;margin-bottom:4px}.g{color:#15803d}.y{color:#a16207}
-      .k{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-      .row{display:flex;gap:8px;margin-top:8px}button{font:inherit;border:1px solid #d0d7de;background:#f6f8fa;border-radius:7px;padding:4px 10px;cursor:pointer}
+      .p{position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:320px;background:#fff;color:#161a3a;overflow:hidden;
+         border:1px solid #e3e0f0;border-radius:12px;box-shadow:0 12px 32px rgba(22,26,58,.18);padding:15px 16px 14px;
+         font:13px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+      .p::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(120deg,#3b4bd8,#7b4fd6 36%,#d45a9a 70%,#f0876a)}
+      b{display:block;margin-bottom:6px;font-weight:650}
+      .k{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:0}
+      .row{display:flex;gap:8px;margin-top:10px}button{font:inherit;font-weight:500;color:#161a3a;border:1px solid #d7d3ea;background:#fff;border-radius:8px;padding:5px 11px;cursor:pointer}
+      button:hover{background:#f4f1fe}button:focus-visible{outline:2px solid #7b4fd6;outline-offset:2px}
     </style>
     <div class="p" role="status">
       <b>Form Filler</b>
-      <div><span class="k" style="background:#22c55e"></span>${stats.green} filled</div>
-      <div><span class="k" style="background:#facc15"></span>${stats.yellow} to check or fill yourself</div>
+      <div><span class="k" style="background:#12a57a"></span>${stats.green} filled</div>
+      <div><span class="k" style="background:#e3962b"></span>${stats.yellow} to check or fill yourself</div>
       ${stats.kept ? `<div>${stats.kept} already had a value (left as is)</div>` : ''}
-      <div style="margin-top:6px;color:#57606a">Review everything before you submit. Form Filler never submits forms.</div>
+      <div style="margin-top:6px;color:#5f6385">Review everything before you submit. Form Filler never submits forms.</div>
       <div class="row"><button id="c">Clear highlights</button><button id="x">Close</button></div>
     </div>`;
     root.getElementById('c').onclick = () => clearHighlights();
@@ -450,8 +453,12 @@
       host.setAttribute('data-ff-ui', '');
       host.style.cssText = 'display:inline-block;margin:4px 6px;vertical-align:middle';
       const root = host.attachShadow({ mode: 'closed' });
-      root.innerHTML = `<style>button{font:12px system-ui,sans-serif;border:1px solid #16805a;color:#16805a;background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer}
-        button:hover{background:#e3f4ec}</style><button type="button" title="Attach a document from Form Filler's encrypted locker">📎 Pick from locker</button>`;
+      // white chip with a thin sunset border and navy text: readable on any site
+      root.innerHTML = `<style>button{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#2a2e63;
+          border:1.5px solid transparent;border-radius:8px;padding:6px 11px 6px 9px;cursor:pointer;
+          background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#3b4bd8,#7b4fd6 36%,#d45a9a 70%,#f0876a) border-box;box-shadow:0 1px 2px rgba(22,26,58,.12);transition:box-shadow .15s,background .15s}
+        button:hover{background:linear-gradient(#f6f2ff,#f6f2ff) padding-box,linear-gradient(120deg,#3b4bd8,#7b4fd6 36%,#d45a9a 70%,#f0876a) border-box;box-shadow:0 4px 12px -4px rgba(123,79,214,.45)}
+        button:focus-visible{outline:2px solid #7b4fd6;outline-offset:2px}svg{flex:none}</style><button type="button" title="Attach a document from Form Filler's encrypted locker"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7b4fd6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 11.5-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6"/></svg>Pick from locker</button>`;
       root.querySelector('button').addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -521,10 +528,10 @@
     const wrap = document.createElement('div');
     wrap.id = 'ff-picker-wrap';
     wrap.setAttribute('data-ff-ui', '');
-    wrap.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(15,18,38,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center';
     const frame = document.createElement('iframe');
     frame.src = chrome.runtime.getURL('picker/picker.html') + '?' + params.toString();
-    frame.style.cssText = 'width:min(980px,96vw);height:min(820px,94vh);border:0;border-radius:14px;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.3)';
+    frame.style.cssText = 'width:min(980px,96vw);height:min(820px,94vh);border:0;border-radius:16px;background:transparent;color-scheme:normal;box-shadow:0 24px 60px rgba(15,18,38,.45),0 0 60px -12px rgba(212,90,154,.4)';
     wrap.appendChild(frame);
     wrap.addEventListener('click', (e) => { if (e.target === wrap) closePicker(); });
     document.documentElement.appendChild(wrap);

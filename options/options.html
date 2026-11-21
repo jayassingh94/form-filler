@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Form Filler</title>
+  <script src="../lib/theme.js"></script>
   <link rel="stylesheet" href="../lib/ui.css">
   <link rel="stylesheet" href="options.css">
   <link rel="stylesheet" href="../lib/imgedit.css">
@@ -85,7 +86,15 @@
 
     <!-- SETTINGS -->
     <section data-panel="settings" class="hidden">
-      <div class="page-head"><div><h1>Settings</h1><p class="lead">AI matching, filling behaviour, your PIN and site access.</p></div></div>
+      <div class="page-head"><div><h1>Settings</h1><p class="lead">Appearance, AI matching, filling behaviour, your PIN and site access.</p></div></div>
+      <div class="card">
+        <div class="card-head"><span class="ic" data-icon="sparkle"></span><div><h2>Appearance</h2><p>Dark is the default. Applies to every Form Filler screen on this computer.</p></div></div>
+        <div class="seg" role="radiogroup" aria-label="Theme" id="theme">
+          <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+          <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+          <label><input type="radio" name="theme" value="system"><span>Match system</span></label>
+        </div>
+      </div>
       <div class="card">
         <div class="card-head"><span class="ic" data-icon="sparkle"></span><div><h2>AI matching</h2>
           <p>Used only to work out which profile field each form field asks for. <b>It never receives your values or documents.</b>
