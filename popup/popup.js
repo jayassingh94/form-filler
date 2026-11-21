@@ -2,6 +2,7 @@ import { loadVault, lock, isSetUp } from '../lib/vault.js';
 import { aiMode, quotaToday, quotaLimit, serviceConfigured } from '../lib/ai.js';
 import { showLock, onLocked } from '../lib/lockui.js';
 import { sitePattern } from '../lib/site.js';
+import { icon, CHECK_ANIM } from '../lib/icons.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,6 +24,7 @@ onLocked(() => boot());
 
 async function boot() {
   $('#main').classList.add('hidden');
+  $('#links').classList.add('hidden');
   $('#lock-now').classList.add('hidden');
   if (!(await isSetUp())) {
     await showLock($('#lock'), { allowSetup: false });
@@ -32,6 +34,7 @@ async function boot() {
   let vault;
   try { vault = await loadVault(); } catch { return boot(); }
   $('#main').classList.remove('hidden');
+  $('#links').classList.remove('hidden');
   $('#lock-now').classList.remove('hidden');
   const last = (await chrome.storage.local.get('ff_last_profile')).ff_last_profile;
   $('#profile').innerHTML = vault.profiles.map((p) => `<option value="${p.id}">${esc(p.label)}</option>`).join('');
@@ -45,6 +48,7 @@ async function boot() {
     : '';
   $('#ai-note-text').textContent = note;
   $('#ai-note').classList.toggle('hidden', !note);
+  $('#ai-note').classList.toggle('off', !(mode === 'service' && serviceConfigured()) && !(mode === 'own' && vault.settings.apiKey));
   // reopened after a fill (e.g. one finished in the background after Chrome's permission prompt): show it
   await tabReady;
   const lastFill = (await chrome.storage.session.get('ff_last_result')).ff_last_result;
@@ -63,8 +67,8 @@ async function readTab() {
   if (!originPattern) {
     $('#fill').disabled = true;
     $('#result').innerHTML = site.reason === 'restricted'
-      ? '<div class="notice small">Chrome doesn\'t let extensions run on this page (browser settings, extension pages, the Web Store). Open the web form you want to fill.</div>'
-      : '<div class="notice small">Couldn\'t read this tab\'s address. Reload the page, then click the Form Filler icon again.</div>';
+      ? `<div class="info small">Chrome doesn't let extensions run on this page (browser settings, extension pages, the Web Store). Open the web form you want to fill.</div>`
+      : `<div class="notice small">Couldn't read this tab's address. Reload the page, then click the Form Filler icon again.</div>`;
   }
 }
 const tabReady = readTab();
@@ -84,9 +88,10 @@ $('#fill').onclick = async () => {
       return;
     }
     await chrome.storage.local.set({ ff_last_profile: $('#profile').value });
-    $('#fill').disabled = true;
-    $('#fill').textContent = 'Filling…';
-    showResult('<div class="muted small">Reading the form fields…</div>');
+    setBusy(true);
+    showResult(`<div class="res" aria-busy="true"><div class="res-skel"><span class="skeleton circle"></span>
+      <div class="lines"><span class="skeleton" style="width:70%;height:14px"></span><span class="skeleton" style="width:45%"></span></div></div>
+      <span class="sr-only">Reading the form fields…</span></div>`);
     try {
       // afterGrant: if the background already filled it right after the permission, reuse that result
       const r = await chrome.runtime.sendMessage({ type: 'ff-fill', ...req, afterGrant: !alreadyGranted });
@@ -101,37 +106,49 @@ $('#fill').onclick = async () => {
       showResult(`<div class="err small">${esc(m)}</div>`);
       if (e.message === 'LOCKED') boot();
     } finally {
-      $('#fill').disabled = false;
-      $('#fill').textContent = 'Fill this form';
+      setBusy(false);
     }
   });
 };
 
+function setBusy(on) {
+  const b = $('#fill');
+  b.disabled = on;
+  b.classList.toggle('busy', on);
+  b.querySelector('.label').textContent = on ? 'Filling…' : 'Fill this form';
+}
+
 function showResult(html) { $('#result').innerHTML = html; }
 
 function renderResult(r) {
-  const lines = [];
+  const meta = [];
+  const m = (ic, html, cls = '') => meta.push(`<div class="m ${cls}">${icon(ic, 15)}<span>${html}</span></div>`);
+  if (r.kept) m('check', `${r.kept} already had a value (left as is)`);
+  if (r.sensitive) m('shield', `${r.sensitive} sensitive field${r.sensitive === 1 ? '' : 's'} skipped (password, card, bank, OTP…)`);
+  if (r.fileInputs) m('paperclip', `${r.fileInputs} upload field${r.fileInputs === 1 ? '' : 's'}: use <b>Pick from locker</b> on the page`);
+  if (r.aiError) m('alert', r.aiLimit ? `${esc(r.aiError)} Used offline matching this time.` : `AI matching failed (${esc(r.aiError)}). Used offline matching instead.`, 'warn');
+  else if (r.remaining != null) m('sparkle', `Free AI: ${r.remaining} of ${r.limit ?? 10} uses left today`);
+  else if (r.mode === 'offline') m('sparkle', 'Matched with offline keywords');
+  if (r.fallbackModel) m('info', `Your Gemini model was busy, so ${esc(r.fallbackModel)} answered instead.`);
+
+  let top, secs = '';
   if (r.mode === 'none') {
-    lines.push('<div class="notice small">No fillable fields found on this page.</div>');
+    top = `<div class="res-top">${CHECK_ANIM(true)}<div><div class="headline">No form fields here</div>
+      <div class="sub">Open the page with the application form, then try again.</div></div></div>`;
   } else {
-    // "Filled 12 fields · 2 need your input: Mobile, Course"
-    const names = (list, max = 6) => list.length <= max ? list.map(esc).join(', ') : `${list.slice(0, max).map(esc).join(', ')} +${list.length - max} more`;
+    // "Filled 12 · 2 need you"
     const filled = r.filled ?? r.green;
     const needs = r.needs || [];
-    lines.push(`<div class="summary"><b>Filled ${filled} field${filled === 1 ? '' : 's'}</b>${needs.length
-      ? ` · ${needs.length} need${needs.length === 1 ? 's' : ''} your input: <span class="names">${names(needs)}</span>`
-      : ' · nothing left for you'}</div>`);
-    if (r.check?.length) lines.push(`<div class="small" style="margin-top:4px">Please check: ${names(r.check)}</div>`);
-    if (r.kept) lines.push(`<div class="line small muted">${r.kept} already had a value (left as is)</div>`);
+    const chips = (list, cls = '', max = 8) => `<div class="chips">${list.slice(0, max).map((n) => `<span class="c ${cls}" title="${esc(n)}">${esc(n)}</span>`).join('')}${list.length > max ? `<span class="c ${cls}">+${list.length - max} more</span>` : ''}</div>`;
+    top = `<div class="res-top">${CHECK_ANIM(!filled)}<div>
+      <div class="headline">Filled ${filled}${needs.length ? `<span class="sep">·</span><span class="need">${needs.length} need${needs.length === 1 ? 's' : ''} you</span>` : ''}</div>
+      <div class="sub">${needs.length ? 'Fill these in yourself:' : filled ? 'Everything we could match is filled.' : 'Nothing matched your profile.'}</div></div></div>`;
+    if (needs.length) secs += `<div class="res-sec">${chips(needs)}</div>`;
+    if (r.check?.length) secs += `<div class="res-sec"><div class="eyebrow">Please check</div>${chips(r.check, 'check')}</div>`;
   }
-  if (r.sensitive) lines.push(`<div class="line small muted">🛡️ ${r.sensitive} sensitive field(s) skipped (password, card, bank, OTP…)</div>`);
-  if (r.fileInputs) lines.push(`<div class="line small muted">📎 ${r.fileInputs} upload field(s): use "Pick from locker" on the page</div>`);
-  if (r.aiError) lines.push(`<div class="notice small" style="margin-top:6px">${r.aiLimit ? esc(r.aiError) + ' Used offline matching this time.' : `AI matching failed (${esc(r.aiError)}). Used offline matching instead.`}</div>`);
-  else if (r.remaining != null) lines.push(`<div class="small muted">Free AI: ${r.remaining} of ${r.limit ?? 10} uses left today.</div>`);
-  else if (r.mode === 'offline') lines.push('<div class="small muted">Matched with offline keywords.</div>');
-  if (r.fallbackModel) lines.push(`<div class="small muted">Your Gemini model was busy, so ${esc(r.fallbackModel)} answered instead.</div>`);
-  lines.push('<div class="small muted" style="margin-top:6px">Nothing was submitted. Please review the form before submitting.</div>');
-  showResult(`<div class="card" style="padding:10px">${lines.join('')}</div>`);
+  showResult(`<div class="res fade-in">${top}${secs}${meta.length ? `<div class="res-meta">${meta.join('')}</div>` : ''}</div>
+    <div class="res-foot">${icon('info', 13)} Nothing was submitted. Review the form before you submit.</div>`);
 }
+window.__ffRenderResult = renderResult; // used by store/make-screenshots.mjs
 
 boot();

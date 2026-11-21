@@ -76,7 +76,7 @@ async function renderList() {
     .filter((d) => !q || d.name.toLowerCase().includes(q) || d.tags.some((t) => t.includes(q)))
     .sort((a, b) => accepts(b) - accepts(a));
   if (!vault.docs.length) {
-    $('#list').innerHTML = '<p class="muted">Your locker is empty. Add documents under Form Filler → Document Locker.</p>';
+    $('#list').innerHTML = '<div class="empty-state"><h3>Your locker is empty</h3><p>Add your photo, signature and certificates under Form Filler → Document Locker, or pick a file from this computer above.</p></div>';
     return;
   }
   $('#list').innerHTML = docs.map((d) => {
@@ -88,7 +88,7 @@ async function renderList() {
         <b>${esc(d.name)}</b>
         <div class="small muted">${formatSize(d.size)}${d.width ? ` · ${d.width}×${d.height} px` : ''}</div>
         <div>${d.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-        ${p.length ? `<div class="small warn">⚠ ${esc(p.join(', '))}</div>` : ''}
+        ${p.length ? `<div class="small warn">${esc(p.join(', '))}</div>` : ''}
       </div>
       <div class="row" style="flex-direction:column;align-items:stretch">
         <button class="primary" data-act="attach">Attach</button>

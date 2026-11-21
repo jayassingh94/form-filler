@@ -9,14 +9,15 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand"><img src="../icons/icon48.png" alt="" width="26" height="26"> <b>Form Filler</b> <span class="crumb">Fill a PDF</span></div>
-    <nav class="links">
+    <a class="wordmark" href="../options/options.html#profiles"><img src="../icons/icon48.png" alt="" width="28" height="28"><span class="name">Form <span>Filler</span></span></a>
+    <span class="crumb">Fill a PDF</span>
+    <nav class="links tabs" aria-label="Sections">
       <a href="../options/options.html#profiles">My Profile</a>
       <a href="../options/options.html#docs">Document Locker</a>
       <a href="../options/options.html#settings">Settings</a>
       <a href="../privacy.html" target="_blank">Privacy</a>
     </nav>
-    <button id="lock-now" class="hidden">🔒 Lock</button>
+    <button id="lock-now" class="ghost hidden" title="Lock now"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>Lock</button>
   </header>
 
   <div id="lock" class="lockwrap hidden"></div>
@@ -36,7 +37,7 @@
           <summary><span class="num">1</span><span class="st">Choose</span><span class="sum" id="sum-choose"></span></summary>
           <div class="step-body">
             <label><span>Fill as</span><select id="profile"></select></label>
-            <label class="btn primary-file">Open a PDF form…<input type="file" id="file" accept="application/pdf,.pdf" hidden></label>
+            <label class="btn primary wide">Open a PDF form…<input type="file" id="file" accept="application/pdf,.pdf" hidden></label>
             <div id="file-info" class="small"></div>
             <p class="hint">The PDF stays in this tab's memory. It is only stored if you save the filled copy to your locker.</p>
           </div>
@@ -73,7 +74,7 @@
             <div class="toolbar">
               <button id="add-text" type="button" title="Click on the page to add a text box">+ Text</button>
               <button id="add-tick" type="button" title="Click on the page to add a tick">+ Tick</button>
-              <label class="toggle small"><input type="checkbox" id="show-empty" checked> Highlight fields to check</label>
+              <label class="toggle small"><input type="checkbox" class="switch" id="show-empty" checked> Highlight</label>
             </div>
             <div class="legend small"><span class="dot g"></span> filled <span class="dot y"></span> check or fill yourself</div>
             <div id="item-list" class="field-list" role="list"></div>
@@ -84,7 +85,7 @@
         <details class="step hidden" id="step-save" open>
           <summary><span class="num">4</span><span class="st">Save</span><span class="sum" id="sum-save"></span></summary>
           <div class="step-body">
-            <label class="toggle small hidden" id="flatten-row"><input type="checkbox" id="flatten"> Flatten form fields (no longer editable)</label>
+            <label class="toggle small hidden" id="flatten-row"><input type="checkbox" class="switch" id="flatten"> Flatten form fields (no longer editable)</label>
             <button class="primary wide" id="download">Download filled PDF</button>
             <button class="wide" id="to-locker">Save to locker</button>
             <div id="save-msg" class="small"></div>
@@ -94,9 +95,19 @@
     </aside>
 
     <main class="pages" id="pages">
-      <div class="empty">
-        <p><b>Open a PDF form to start.</b></p>
-        <p class="muted">Try <code>test/sample-flat-form.pdf</code>, <code>test/sample-bilingual-form.pdf</code> or <code>test/sample-acroform.pdf</code> from the project folder.</p>
+      <div class="empty empty-state">
+        <svg class="art" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <circle cx="48" cy="50" r="38" fill="currentColor" opacity=".08"/>
+          <path d="M30 16h26l14 14v46a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4z" fill="var(--panel)" stroke="currentColor" stroke-width="2"/>
+          <path d="M56 16v14h14" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M34 40h10M34 50h8M34 60h12" stroke="currentColor" stroke-opacity=".45" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M46 40h16M48 60h14" stroke="currentColor" stroke-width="2" stroke-dasharray="2 3"/>
+          <rect x="44" y="46" width="18" height="8" rx="2" fill="currentColor" opacity=".18"/>
+          <path d="M70 58c.9 5 1.8 5.9 6.8 6.8-5 .9-5.9 1.8-6.8 6.8-.9-5-1.8-5.9-6.8-6.8 5-.9 5.9-1.8 6.8-6.8z" fill="currentColor"/>
+        </svg>
+        <h3>Open a PDF form to start</h3>
+        <p>Fillable PDFs are filled directly. For flat or scanned forms, Form Filler finds the blank lines and boxes and writes your details on them.</p>
+        <div class="row"><button class="primary" id="empty-open">Choose a PDF…</button></div>
       </div>
     </main>
   </div>

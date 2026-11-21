@@ -67,27 +67,24 @@ try {
   await form.goto(FORM);
   const popup = await browser.newPage();
   await light(popup);
-  await popup.setViewport({ width: 340, height: 470, deviceScaleFactor: 2 });
+  await popup.setViewport({ width: 360, height: 600, deviceScaleFactor: 2 });
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
   const tabId = await popup.evaluate(async (u) => (await chrome.tabs.query({ url: u }))[0].id, FORM);
   const r = await popup.evaluate((tabId) => chrome.runtime.sendMessage({ type: 'ff-fill', tabId }), tabId);
   await popup.evaluate((r) => {
-    // show the popup's result as the user sees it after clicking "Fill this form"
-    const needs = r.needs || [];
-    const lines = [`<div class="summary"><b>Filled ${r.filled} fields</b>${needs.length ? ` · ${needs.length} need${needs.length === 1 ? 's' : ''} your input: <span class="names">${needs.join(', ')}</span>` : ''}</div>`,
-      `<div class="line small muted">🛡️ ${r.sensitive} sensitive fields skipped (password, card, bank, OTP…)</div>`,
-      `<div class="line small muted">📎 ${r.fileInputs} upload fields: use “Pick from locker” on the page</div>`,
-      '<div class="small muted" style="margin-top:6px">Nothing was submitted. Please review the form before submitting.</div>'];
-    document.querySelector('#result').innerHTML = `<div class="card" style="padding:10px">${lines.join('')}</div>`;
+    // the popup's real result card, as the user sees it after clicking "Fill this form"
+    r.aiError = null; r.remaining = 9; r.limit = 10;
+    window.__ffRenderResult(r);
     document.querySelector('#ai-note').classList.add('hidden');
-    const b = document.querySelector('#fill'); b.disabled = false; b.textContent = 'Fill this form'; // as on a real web page
+    document.querySelector('#fill').disabled = false; // as on a real web page (this popup runs as a tab here)
   }, r);
+  await sleep(700); // let the check animation finish
   await form.bringToFront();
   await form.evaluate(() => { window.scrollTo(0, 0); document.getElementById('ff-panel-host')?.remove(); });
   await sleep(400);
   shots.form = await form.screenshot({ encoding: 'base64' });
   await popup.bringToFront(); await sleep(200);
-  shots.popup = await popup.screenshot({ encoding: 'base64' });
+  shots.popup = await popup.screenshot({ encoding: 'base64', fullPage: true });
 
   // 2. profile page
   await opt.bringToFront();
@@ -141,20 +138,20 @@ const page = await composer.newPage();
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
 const img = (b64) => `data:image/png;base64,${b64}`;
 const frame = (title, sub, inner) => `<html><head><style>
-  body { margin:0; width:1280px; height:800px; overflow:hidden; font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
-    background: linear-gradient(160deg, #eefaf4 0%, #e3f4ec 55%, #d6efe3 100%); color:#0f2a1f; }
-  header { padding: 34px 56px 0; }
-  h1 { margin:0; font-size:38px; letter-spacing:-.02em; }
-  p { margin:10px 0 0; font-size:19px; color:#36564a; max-width:1100px; }
-  .stage { position:absolute; left:56px; right:56px; top:168px; bottom:0; }
-  .shot { position:absolute; border-radius:12px 12px 0 0; box-shadow:0 18px 50px rgba(15,60,40,.22); overflow:hidden; background:#fff; }
+  body { margin:0; width:1280px; height:800px; overflow:hidden; font-family: Inter, -apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    background: radial-gradient(900px 420px at 80% -10%, #c7d2fe 0%, transparent 70%), linear-gradient(160deg, #f5f6ff 0%, #eef0ff 55%, #e4e7fe 100%); color:#111827; }
+  header { padding: 36px 56px 0; }
+  h1 { margin:0; font-size:38px; letter-spacing:-.03em; font-weight:700; }
+  p { margin:10px 0 0; font-size:19px; line-height:1.45; color:#4b5563; max-width:1100px; }
+  .stage { position:absolute; left:56px; right:56px; top:170px; bottom:0; }
+  .shot { position:absolute; border-radius:14px 14px 0 0; box-shadow:0 24px 60px rgba(49,46,129,.20), 0 0 0 1px rgba(49,46,129,.06); overflow:hidden; background:#fff; }
   .shot img { display:block; width:100%; }
 </style></head><body><header><h1>${title}</h1><p>${sub}</p></header><div class="stage">${inner}</div></body></html>`;
 const pages = [
   ['1-fill-web-forms', 'Fill long application forms in one click',
     'Names, dates, dropdowns, radio buttons and addresses come from your profile. The popup tells you what still needs you. Forms are never submitted for you.',
     `<div class="shot" style="left:0;top:0;width:800px">${`<img src="${img(shots.form)}">`}</div>
-     <div class="shot" style="right:10px;top:30px;width:330px;border-radius:12px"><img src="${img(shots.popup)}"></div>`],
+     <div class="shot" style="right:10px;top:20px;width:340px;border-radius:14px"><img src="${img(shots.popup)}"></div>`],
   ['2-profile', 'Save your details once, privately',
     'Personal, family, address, education, category and work details, for you and your family. Encrypted on your computer with your PIN.',
     `<div class="shot" style="left:50px;right:50px;top:0"><img src="${img(shots.profile)}"></div>`],

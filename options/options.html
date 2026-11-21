@@ -9,55 +9,75 @@
   <link rel="stylesheet" href="../lib/imgedit.css">
 </head>
 <body>
-  <header class="top">
-    <div class="brand"><img src="../icons/icon48.png" alt="" width="28" height="28"> <b>Form Filler</b></div>
-    <nav id="tabs">
-      <button data-tab="profiles" class="active">My Profile</button>
-      <button data-tab="docs">Document Locker</button>
-      <a href="../pdf/pdf.html">Fill a PDF</a>
-      <button data-tab="settings">Settings</button>
-      <button data-tab="data">Backup &amp; data</button>
-      <a href="../privacy.html" target="_blank">Privacy</a>
+  <header class="top" id="top">
+    <a class="wordmark" href="#profiles"><img src="../icons/icon48.png" alt="" width="28" height="28"><span class="name">Form <span>Filler</span></span></a>
+    <nav id="tabs" class="tabs" aria-label="Sections">
+      <button data-tab="profiles" class="active" data-icon="user">My Profile</button>
+      <button data-tab="docs" data-icon="folder">Document Locker</button>
+      <a href="../pdf/pdf.html" data-icon="pdf">Fill a PDF</a>
+      <button data-tab="settings" data-icon="settings">Settings</button>
+      <button data-tab="data" data-icon="database">Backup &amp; data</button>
+      <a href="../privacy.html" target="_blank" data-icon="shield">Privacy</a>
     </nav>
-    <button id="lock-now" title="Lock now">🔒 Lock</button>
+    <button id="lock-now" class="ghost" title="Lock now"><span data-icon="lock"></span>Lock</button>
   </header>
+
+  <!-- first run: Create PIN → Fill your profile → Try it -->
+  <div id="onboard" class="onboard hidden"></div>
 
   <div id="lock" class="lockwrap hidden"></div>
 
-  <main id="app" class="hidden">
+  <div id="boot-skel" class="page" aria-hidden="true">
+    <div class="page-head"><span class="skeleton" style="width:180px;height:26px"></span><span class="skeleton" style="width:340px"></span></div>
+    <div class="card"><span class="skeleton" style="width:40%;height:16px"></span><span class="skeleton" style="width:90%"></span><span class="skeleton" style="width:75%"></span></div>
+  </div>
+
+  <main id="app" class="page hidden">
     <!-- PROFILES -->
     <section data-panel="profiles">
-      <div class="card row profile-bar">
-        <label class="grow"><span>Profile</span><select id="profile-select"></select></label>
-        <button id="profile-add">+ New profile</button>
-        <button id="profile-rename">Rename</button>
-        <button id="profile-delete" class="danger">Delete</button>
-        <span id="save-state" class="small muted"></span>
+      <div class="page-head">
+        <div>
+          <h1>My Profile</h1>
+          <p class="lead">Fill in what forms usually ask for. Empty fields are skipped. Everything is encrypted on this computer.</p>
+        </div>
+        <span id="save-state" class="save-state" aria-live="polite"></span>
       </div>
-      <p class="muted small">Changes save automatically and are encrypted. Fill only what you want; empty fields are skipped.
-        Dates are stored as day/month/year and converted to each form's format.</p>
-      <div id="profile-form"></div>
+      <div class="card profile-bar">
+        <div class="avatar" id="profile-avatar" aria-hidden="true"></div>
+        <label class="grow"><span>Profile</span><select id="profile-select"></select></label>
+        <div class="row">
+          <button id="profile-add"><span data-icon="plus"></span>New profile</button>
+          <button id="profile-rename" class="ghost">Rename</button>
+          <button id="profile-delete" class="ghost danger-text">Delete</button>
+        </div>
+      </div>
+      <p class="help hint-line">Dates are stored as day/month/year and converted to each form's format.</p>
+      <div id="profile-form" class="sections"></div>
       <details class="card section" open>
-        <summary><h3>Custom fields</h3></summary>
-        <p class="muted small">Anything else a form may ask for (e.g. "Employee ID", "Registration number").
-          The <b>field name</b> is shared with the AI so it can recognise the field; the <b>value</b> never is.</p>
-        <div id="custom-list"></div>
-        <button id="custom-add">+ Add custom field</button>
+        <summary><span class="sec-ic" data-icon="plus"></span><h3>Custom fields</h3></summary>
+        <div class="sec-body">
+          <p class="help">Anything else a form may ask for (e.g. "Employee ID", "Registration number").
+            The <b>field name</b> is shared with the AI so it can recognise the field; the <b>value</b> never is.</p>
+          <div id="custom-list"></div>
+          <button id="custom-add"><span data-icon="plus"></span>Add custom field</button>
+        </div>
       </details>
-      <p class="small muted">Just trying it out? <button class="link small" id="profile-demo">Add a demo profile with fake data</button>
-        and use it on <code>test/sample-form.html</code>.</p>
+      <p class="help center">Just trying it out? <button class="link" id="profile-demo">Add a demo profile with fake data</button></p>
     </section>
 
     <!-- DOCUMENTS -->
     <section data-panel="docs" class="hidden">
-      <div class="card">
-        <h2>Document Locker</h2>
-        <p class="muted">Photo, signature, marksheets, certificates… Stored encrypted in this browser. When you click
-          <b>Fill this form</b>, a <b>📎 Pick from locker</b> button appears next to every upload field on the page.</p>
-        <div class="row">
-          <label class="btn primary-file">+ Add documents<input type="file" id="doc-input" multiple hidden></label>
-          <input id="doc-search" class="grow" placeholder="Search by name or tag" style="max-width:320px">
+      <div class="page-head">
+        <div>
+          <h1>Document Locker</h1>
+          <p class="lead">Your photo, signature, marksheets and certificates, encrypted in this browser. On a form, use
+            <b>Pick from locker</b> next to any upload field.</p>
         </div>
+      </div>
+      <div class="toolbar-row">
+        <label class="search"><span class="sr-only">Search documents</span><span class="search-ic" data-icon="search"></span>
+          <input id="doc-search" placeholder="Search by name or tag"></label>
+        <label class="btn primary"><span data-icon="upload"></span>Add documents<input type="file" id="doc-input" multiple hidden></label>
       </div>
       <div id="doc-grid" class="doc-grid"></div>
       <dialog id="edit-dialog" class="edit-dialog"><div id="edit-host"></div></dialog>
@@ -65,82 +85,82 @@
 
     <!-- SETTINGS -->
     <section data-panel="settings" class="hidden">
+      <div class="page-head"><div><h1>Settings</h1><p class="lead">AI matching, filling behaviour, your PIN and site access.</p></div></div>
       <div class="card">
-        <h2>AI matching</h2>
-        <p class="muted">AI is used <b>only</b> to work out which of your profile fields each form field asks for, to find the
-          blanks on PDF forms, and to read photo/signature size rules. It receives field labels, placeholders and option texts,
-          blank form page images (Fill a PDF, after you agree) or upload instructions, plus generic profile field names.
-          <b>It never receives your profile values or documents.</b> <a href="../privacy.html" target="_blank">Details</a></p>
+        <div class="card-head"><span class="ic" data-icon="sparkle"></span><div><h2>AI matching</h2>
+          <p>Used only to work out which profile field each form field asks for. <b>It never receives your values or documents.</b>
+            <a href="../privacy.html" target="_blank">How it works</a></p></div></div>
         <div class="ai-modes" role="radiogroup" aria-label="AI matching">
           <label class="ai-mode"><input type="radio" name="ai-mode" value="service">
-            <span><b>Form Filler AI (free)</b> <span class="tag">recommended</span><br>
-            <span class="muted small">No key needed. Up to 10 AI uses a day. Requests go through Form Filler's server, which passes them to
+            <span><b>Form Filler AI (free)</b> <span class="tag">Recommended</span><br>
+            <span class="help">No key needed. Up to 10 AI uses a day. Requests go through Form Filler's server, which passes them to
               Google Gemini and stores nothing. <span id="quota-note"></span></span></span></label>
           <p id="service-missing" class="notice small hidden">The free Form Filler AI isn't set up in this version, so offline matching is used. Choose "my own key" to use AI.</p>
           <label class="ai-mode"><input type="radio" name="ai-mode" value="own">
             <span><b>Use my own Gemini key</b><br>
-            <span class="muted small">No daily limit from Form Filler. Requests go straight from your browser to Google.</span></span></label>
+            <span class="help">No daily limit from Form Filler. Requests go straight from your browser to Google.</span></span></label>
           <label class="ai-mode"><input type="radio" name="ai-mode" value="off">
-            <span><b>Off: offline matching only</b><br><span class="muted small">Nothing is ever sent. Simpler keyword matching; scanned PDFs need boxes placed by hand.</span></span></label>
+            <span><b>Off: offline matching only</b><br><span class="help">Nothing is ever sent. Simpler keyword matching; scanned PDFs need boxes placed by hand.</span></span></label>
         </div>
-        <div id="own-key" class="hidden" style="margin-top:10px">
-          <label><span>Gemini API key (get one at aistudio.google.com)</span>
+        <div id="own-key" class="hidden own-key">
+          <label><span>Gemini API key <a href="https://aistudio.google.com/apikey" target="_blank">get one free</a></span>
             <div class="row"><input type="password" id="api-key" class="grow" autocomplete="off" spellcheck="false">
             <button id="api-key-show" type="button">Show</button></div></label>
-          <label style="margin-top:8px"><span>Model</span><input id="model" spellcheck="false"></label>
+          <label><span>Model</span><input id="model" spellcheck="false"></label>
         </div>
-        <div class="row" style="margin-top:10px">
+        <div class="card-actions">
           <button class="primary" id="settings-save">Save</button>
           <button id="api-test">Test connection</button>
           <span id="settings-msg" class="small"></span>
         </div>
       </div>
       <div class="card">
-        <h2>Filling</h2>
-        <label class="ai-mode"><input type="checkbox" id="highlight">
-          <span><b>Highlight fields on the page</b><br>
-          <span class="muted small">Outline filled fields in green and fields to check in yellow, with a small summary box on the page.
-            Off by default: Form Filler just fills the values and shows the summary in its popup.</span></span></label>
-        <div class="row" style="margin-top:10px"><span id="fill-msg" class="small"></span></div>
+        <div class="card-head"><span class="ic" data-icon="cursor"></span><div><h2>Filling</h2><p>How Form Filler behaves on web forms.</p></div></div>
+        <label class="switch-row setting">
+          <span class="switch-text"><b>Highlight fields on the page</b>
+            <span class="help">Outline filled fields in green and fields to check in yellow, with a small summary box on the page.
+            Off by default: Form Filler just fills the values and shows the summary in its popup.</span></span>
+          <input type="checkbox" class="switch" id="highlight"></label>
+        <span id="fill-msg" class="small"></span>
       </div>
       <div class="card">
-        <h2>Change PIN</h2>
+        <div class="card-head"><span class="ic" data-icon="key"></span><div><h2>Change PIN</h2><p>Your data is re-encrypted with the new PIN.</p></div></div>
         <div class="grid3">
           <label><span>Current PIN</span><input type="password" id="pin-old" autocomplete="off"></label>
           <label><span>New PIN (min 6)</span><input type="password" id="pin-new" autocomplete="new-password"></label>
           <label><span>Confirm new PIN</span><input type="password" id="pin-new2" autocomplete="new-password"></label>
         </div>
-        <div class="row" style="margin-top:10px"><button id="pin-change">Change PIN</button><span id="pin-msg" class="small"></span></div>
+        <div class="card-actions"><button id="pin-change">Change PIN</button><span id="pin-msg" class="small"></span></div>
       </div>
       <div class="card">
-        <h2>Sites with access</h2>
-        <p class="muted">Form Filler asks for access to a site only when you click <b>Fill this form</b> there.
-          You can remove access at any time.</p>
+        <div class="card-head"><span class="ic" data-icon="globe"></span><div><h2>Sites with access</h2>
+          <p>Form Filler asks for access to a site only when you click <b>Fill this form</b> there. Remove access any time.</p></div></div>
         <div id="sites"></div>
       </div>
     </section>
 
     <!-- DATA -->
     <section data-panel="data" class="hidden">
-      <div class="card">
-        <h2>Export backup</h2>
-        <p class="muted">Downloads one file with all profiles, documents and settings. It stays <b>encrypted with your
-          current PIN</b>, so you'll need that PIN to open it after importing. Keep it somewhere safe.</p>
-        <button class="primary" id="export">Export backup</button>
-      </div>
-      <div class="card">
-        <h2>Import backup</h2>
-        <p class="muted">Replaces <b>everything</b> currently stored with the backup's contents. Afterwards, unlock with
-          the PIN that was in use when the backup was made.</p>
-        <label class="btn">Choose backup file…<input type="file" id="import" accept=".json,application/json" hidden></label>
-        <span id="import-msg" class="small"></span>
+      <div class="page-head"><div><h1>Backup &amp; data</h1><p class="lead">Move your details to another computer, or erase everything.</p></div></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><span class="ic" data-icon="download"></span><div><h2>Export backup</h2>
+            <p>One file with all profiles, documents and settings, still <b>encrypted with your current PIN</b>.</p></div></div>
+          <button class="primary" id="export"><span data-icon="download"></span>Export backup</button>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="ic" data-icon="upload"></span><div><h2>Import backup</h2>
+            <p>Replaces <b>everything</b> stored now. Unlock afterwards with the PIN used when the backup was made.</p></div></div>
+          <label class="btn"><span data-icon="upload"></span>Choose backup file…<input type="file" id="import" accept=".json,application/json" hidden></label>
+          <span id="import-msg" class="small"></span>
+        </div>
       </div>
       <div class="card danger-zone">
-        <h2>Delete all data</h2>
-        <p class="muted">Permanently erases all profiles, documents, the API key and your PIN from this browser.
-          This cannot be undone. Type <b>DELETE</b> to confirm.</p>
-        <div class="row"><input id="delete-confirm" style="max-width:160px" autocomplete="off">
-          <button class="danger solid" id="delete-all">Delete everything</button></div>
+        <div class="card-head"><span class="ic" data-icon="trash"></span><div><h2>Delete all data</h2>
+          <p>Permanently erases all profiles, documents, the API key and your PIN from this browser. This cannot be undone.</p></div></div>
+        <label><span>Type <b>DELETE</b> to confirm</span>
+          <div class="row"><input id="delete-confirm" style="max-width:200px" autocomplete="off">
+          <button class="danger solid" id="delete-all">Delete everything</button></div></label>
       </div>
     </section>
   </main>

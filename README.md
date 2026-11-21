@@ -72,8 +72,8 @@ Full details: **[Privacy policy](privacy.html)**.
 2. Open `chrome://extensions` in Chrome and turn on **Developer mode** (top right)
 3. Click **Load unpacked** and choose the `form-filler` folder (the one with `manifest.json`)
 4. Pin Form Filler from the puzzle-piece menu
-5. The setup page opens: create a PIN (at least 6 characters; it can't be recovered if forgotten), then fill in
-   **My Profile**, or click *“Add a demo profile with fake data”* to try it out
+5. A short setup opens: create a PIN (at least 6 characters; it can't be recovered if forgotten), add your basic
+   details (or choose *“Use demo data”* to try it with fake data), and see how to fill your first form
 
 The free AI only works in builds that point at a deployed server (see below). Until then, choose **Use my own Gemini
 key** (free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) or use offline matching.

@@ -45,6 +45,7 @@ async function devanagariFont() {
 // ---------------- boot & lock ----------------
 onLocked(() => location.reload()); // wipes the PDF and values from memory
 $('#lock-now').onclick = () => lock();
+document.getElementById('empty-open')?.addEventListener('click', () => $('#file').click());
 
 async function boot() {
   await showLock($('#lock'));
@@ -135,7 +136,9 @@ async function openPdf(name, bytes) {
 
 async function renderPages() {
   const host = $('#pages');
-  host.innerHTML = '';
+  // skeleton pages while rendering
+  host.innerHTML = Array.from({ length: Math.min(pdf.numPages, 2) }, () => `<div class="page page-skel skeleton" style="width:${PREVIEW_W}px;height:${Math.round(PREVIEW_W * 1.414)}px"></div>`).join('');
+  let cleared = false;
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
     const vp1 = page.getViewport({ scale: 1 });
@@ -156,6 +159,7 @@ async function renderPages() {
     el.style.height = cssH + 'px';
     el.innerHTML = `<span class="pno">Page ${n}</span>`;
     el.appendChild(canvas);
+    if (!cleared) { host.innerHTML = ''; cleared = true; }
     host.appendChild(el);
     pages.push({ num: n, vp1, el, cssW, cssH, pdfPage: page });
     el.addEventListener('pointerdown', (e) => onPagePointer(e, n));
@@ -931,7 +935,7 @@ function renderList() {
   const ae = document.activeElement;
   const keep = ae && host.contains(ae) ? { card: ae.closest('.fc')?.dataset.id, act: ae.dataset.act, item: ae.dataset.item, pos: ae.selectionStart } : null;
   if (!items.length) {
-    host.innerHTML = '<div class="empty-list">No fields yet. Run step 2, or add your own with “+ Text”.</div>';
+    host.innerHTML = '<div class="empty-list"><b>No fields yet</b><br>Run step 2, or add your own with “+ Text”.</div>';
     updateSummaries();
     return;
   }

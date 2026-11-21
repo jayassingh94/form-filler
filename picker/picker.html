@@ -6,14 +6,20 @@
   <link rel="stylesheet" href="../lib/ui.css">
   <link rel="stylesheet" href="../lib/imgedit.css">
   <style>
-    body { padding: 16px; min-height: 100vh; }
-    header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    header h1 { flex: 1; font-size: 17px; margin: 0; }
-    .req { margin-bottom: 10px; }
+    body { padding: 16px 20px 20px; min-height: 100vh; }
+    header { display: flex; align-items: center; gap: 10px; margin: -16px -20px 16px; padding: 12px 16px 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    header h1 { flex: 1; font-size: 15px; line-height: 22px; margin: 0; font-weight: 650; }
+    #field { margin-bottom: 4px; }
+    .req { margin-bottom: 12px; }
+    .req:empty { display: none; }
+    .req b { color: var(--text); }
     .list { display: grid; gap: 8px; }
-    .item { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-    .item.dim { opacity: .5; }
-    .item .th { width: 64px; height: 64px; border-radius: 6px; background: var(--bg); display: grid; place-items: center; overflow: hidden; font-weight: 700; color: var(--muted); font-size: 12px; }
+    .item { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow-xs); transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+    .item:hover { border-color: var(--line-strong); box-shadow: var(--shadow); }
+    .item b { font-size: 13.5px; }
+    .item .row button { --bh: 32px; }
+    .item.dim { opacity: .55; }
+    .item .th { width: 64px; height: 64px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; font-weight: 700; color: var(--accent); font-size: 12px; }
     .item .th img { max-width: 100%; max-height: 100%; }
     .warn { color: var(--warn-ink); }
     .resize { margin-top: 12px; }
@@ -23,8 +29,9 @@
 </head>
 <body>
   <header>
-    <h1>📎 Pick from locker</h1>
-    <button id="close">Close</button>
+    <img src="../icons/icon48.png" width="24" height="24" alt="">
+    <h1>Pick from locker</h1>
+    <button id="close" class="ghost sm">Close</button>
   </header>
   <div id="lock" class="hidden"></div>
   <div id="main" class="hidden">
