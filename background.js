@@ -129,15 +129,22 @@ async function handleFill({ tabId, profileId, overwrite }) {
     });
   });
 
-  const totals = { green: 0, yellow: 0, kept: 0 };
+  const totals = { green: 0, yellow: 0, kept: 0, filled: 0, needs: [], check: [] };
+  const highlight = !!vault.settings.highlight; // off by default: no colours on the page
   for (const [frameId, args] of perFrame) {
     const [res] = await chrome.scripting.executeScript({
       target: { tabId, frameIds: [frameId] },
       func: (a) => window.__formFiller.fill(a),
-      args: [{ ...args, overwrite: !!overwrite }]
+      args: [{ ...args, overwrite: !!overwrite, highlight }]
     });
-    if (res?.result) for (const k of Object.keys(totals)) totals[k] += res.result[k] || 0;
+    const r = res?.result;
+    if (!r) continue;
+    for (const k of ['green', 'yellow', 'kept', 'filled']) totals[k] += r[k] || 0;
+    totals.needs.push(...(r.needs || []));
+    totals.check.push(...(r.check || []));
   }
+  totals.needs = [...new Set(totals.needs)];
+  totals.check = [...new Set(totals.check)];
   const fallbackModel = mode === 'ai' && lastModelUsed && lastModelUsed !== model ? lastModelUsed : null;
   return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel, aiLimit: /daily limit|today's/.test(aiError || ''), remaining: aiMode(vault.settings) === 'service' ? lastRemaining : null, limit: lastLimit };
 }

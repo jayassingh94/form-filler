@@ -295,8 +295,26 @@
   /**
    * assignments: [{ffId, value, kind, sure, dateFormat, key}] ; review: [ffId] mapped-but-empty / unmapped
    */
-  async function fill({ assignments, review, overwrite }) {
-    const stats = { green: 0, yellow: 0, kept: 0 };
+  // Highlighting is optional (Settings → Filling → Highlight fields on the page); by default the page is left
+  // exactly as it is apart from the filled values, and the summary is shown in the popup only.
+  let highlightOn = false;
+
+  /** Short, readable name of a field for the popup summary ("Mobile Number / मोबाइल नंबर :" → "Mobile Number"). */
+  function shortLabel(f) {
+    let l = String(f.desc.label || f.desc.placeholder || f.desc.name || '');
+    l = l.split(/\s+\/\s+/)[0]
+      .replace(/\s*\([^)]*\)\s*/g, ' ')
+      .replace(/^[\s\d.)]+/, '')
+      .replace(/[\s:*]+$/, '')
+      .replace(/\s+/g, ' ').trim();
+    if (!l) return 'Unnamed field';
+    return l.length > 32 ? l.slice(0, 30).trim() + '…' : l;
+  }
+
+  async function fill({ assignments, review, overwrite, highlight }) {
+    highlightOn = !!highlight;
+    clearHighlights();
+    const stats = { green: 0, yellow: 0, kept: 0, filled: 0, needs: [], check: [] };
     const pending = [];
     for (const a of assignments) {
       const f = fields.get(a.ffId);
@@ -324,8 +342,11 @@
       if (isFilledByUser(f)) continue;
       mark(f, YELLOW, 'Form Filler: not sure what goes here. Please fill or check manually.');
       stats.yellow++;
+      stats.needs.push(shortLabel(f));
     }
-    showPanel(stats);
+    if (highlightOn) showPanel(stats);
+    stats.needs = [...new Set(stats.needs)];
+    stats.check = [...new Set(stats.check)];
     return stats;
   }
 
@@ -337,10 +358,10 @@
   }
 
   function finish(f, a, r, stats) {
-    if (r === 'filled' && a.sure) { mark(f, GREEN, `Form Filler: filled from your profile (${a.key}).`); stats.green++; }
-    else if (r === 'filled' || r === 'unsure') { mark(f, YELLOW, `Form Filler: filled (${a.key}) but please double-check.`); stats.yellow++; }
+    if (r === 'filled' && a.sure) { mark(f, GREEN, `Form Filler: filled from your profile (${a.key}).`); stats.green++; stats.filled++; }
+    else if (r === 'filled' || r === 'unsure') { mark(f, YELLOW, `Form Filler: filled (${a.key}) but please double-check.`); stats.yellow++; stats.filled++; stats.check.push(shortLabel(f)); }
     else if (r === 'kept') { stats.kept++; }
-    else { mark(f, YELLOW, `Form Filler: could not fill (${a.key}); no matching value or option.`); stats.yellow++; }
+    else { mark(f, YELLOW, `Form Filler: could not fill (${a.key}); no matching value or option.`); stats.yellow++; stats.needs.push(shortLabel(f)); }
   }
 
   // ---------------- highlights ----------------
@@ -351,6 +372,7 @@
   }
 
   function mark(f, color, title) {
+    if (!highlightOn) return; // default: no colours, borders, tints or tooltips on the page
     for (const t of targetsOf(f)) {
       if (!t.dataset.ffOrig) t.dataset.ffOrig = JSON.stringify({ o: t.style.outline, b: t.style.backgroundColor, t: t.title });
       t.style.setProperty('outline', color.outline, 'important');
@@ -532,7 +554,7 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
         closePicker();
         const target = visible(input) ? input : input.parentElement;
-        if (target) {
+        if (target && highlightOn) {
           target.style.setProperty('outline', GREEN.outline, 'important');
           highlighted.add(target);
         }

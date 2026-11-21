@@ -25,7 +25,7 @@ Tired of typing the same details into every job, exam and admission form? Form F
 **Fill web forms in one click**
 • Names, dates of birth (in any format: DD/MM/YYYY, separate day/month/year boxes…), dropdowns, radio buttons, checkboxes and addresses
 • Education (10th, 12th, graduation…), category, family and work details
-• Green = filled, yellow = please check. The form is never submitted for you
+• Fills the values and tells you in the popup which fields still need you (“Filled 12 fields · 2 need your input: Mobile, Course”). The form is never submitted for you
 • Password, card, CVV, bank, OTP and captcha fields are never touched
 
 **Fill PDF forms too**
@@ -46,7 +46,7 @@ Tired of typing the same details into every job, exam and admission form? Form F
 • No account, no ads, no tracking, no analytics
 • Several profiles (you and your family), encrypted backup and restore, “Delete all data” in one click
 
-How it works: save your details once → open any application form → click Form Filler → “Fill this form” → check the highlighted fields → submit yourself.
+How it works: save your details once → open any application form → click Form Filler → “Fill this form” → fill in what the popup lists → submit yourself.
 
 Privacy policy: https://YOUR-SERVICE.onrender.com/privacy
 

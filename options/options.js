@@ -304,12 +304,18 @@ $('#doc-grid').addEventListener('click', async (e) => {
 function renderSettings() {
   $('#api-key').value = vault.settings.apiKey || '';
   $('#model').value = vault.settings.model || DEFAULT_MODEL;
+  $('#highlight').checked = !!vault.settings.highlight;
   const mode = aiMode(vault.settings);
   document.querySelectorAll('input[name=ai-mode]').forEach((r) => { r.checked = r.value === mode; });
   showModeFields();
   quotaToday().then((left) => { $('#quota-note').textContent = left != null ? `${left} left today.` : ''; });
 }
 const msg = (el, text, cls = 'muted') => { el.className = 'small ' + cls; el.textContent = text; };
+
+$('#highlight').onchange = async (e) => {
+  vault.settings.highlight = e.target.checked;
+  if (await persist()) msg($('#fill-msg'), e.target.checked ? '✓ Fields will be highlighted on the page.' : '✓ No highlighting: the summary appears in the popup.', 'ok');
+};
 
 const selectedMode = () => document.querySelector('input[name=ai-mode]:checked')?.value || 'service';
 function showModeFields() {

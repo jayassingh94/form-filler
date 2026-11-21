@@ -73,8 +73,8 @@ try {
   const r = await popup.evaluate((tabId) => chrome.runtime.sendMessage({ type: 'ff-fill', tabId }), tabId);
   await popup.evaluate((r) => {
     // show the popup's result as the user sees it after clicking "Fill this form"
-    const lines = [`<div class="line"><span class="dot" style="background:#22c55e"></span><b>${r.green}</b> filled</div>`,
-      `<div class="line"><span class="dot" style="background:#facc15"></span><b>${r.yellow}</b> to check / fill yourself</div>`,
+    const needs = r.needs || [];
+    const lines = [`<div class="summary"><b>Filled ${r.filled} fields</b>${needs.length ? ` · ${needs.length} need${needs.length === 1 ? 's' : ''} your input: <span class="names">${needs.join(', ')}</span>` : ''}</div>`,
       `<div class="line small muted">🛡️ ${r.sensitive} sensitive fields skipped (password, card, bank, OTP…)</div>`,
       `<div class="line small muted">📎 ${r.fileInputs} upload fields: use “Pick from locker” on the page</div>`,
       '<div class="small muted" style="margin-top:6px">Nothing was submitted. Please review the form before submitting.</div>'];
@@ -152,7 +152,7 @@ const frame = (title, sub, inner) => `<html><head><style>
 </style></head><body><header><h1>${title}</h1><p>${sub}</p></header><div class="stage">${inner}</div></body></html>`;
 const pages = [
   ['1-fill-web-forms', 'Fill long application forms in one click',
-    'Names, dates, dropdowns, radio buttons and addresses come from your profile. Green = filled, yellow = please check. Forms are never submitted for you.',
+    'Names, dates, dropdowns, radio buttons and addresses come from your profile. The popup tells you what still needs you. Forms are never submitted for you.',
     `<div class="shot" style="left:0;top:0;width:800px">${`<img src="${img(shots.form)}">`}</div>
      <div class="shot" style="right:10px;top:30px;width:330px;border-radius:12px"><img src="${img(shots.popup)}"></div>`],
   ['2-profile', 'Save your details once, privately',

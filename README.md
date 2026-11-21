@@ -4,7 +4,7 @@
 
 Form Filler is a Chrome extension for people who fill the same details into form after form: name, father's name, date of
 birth, addresses, education, category, documents. Save them once, open any application form, click **Fill this form**,
-check the highlighted fields, and submit yourself.
+check what the popup says still needs you, and submit yourself.
 
 ![Filling a web application form in one click](store/screenshots/1-fill-web-forms.png)
 
@@ -15,8 +15,9 @@ check the highlighted fields, and submit yourself.
   day/month/year boxes, date pickers) and dropdowns that load after another one (State → District)
 - Understands common labels and their variations: “Name of the Candidate”, “Father's/Husband's Name”, “S/o”,
   “Address for Correspondence”, Hindi labels (नाम, पिता का नाम, पता…)
-- Green = filled, yellow = please check. **Never submits a form**, and never touches password, card, CVV, bank, OTP or
-  captcha fields
+- Just fills the values: the page itself isn't marked up. The popup sums it up, e.g. *“Filled 12 fields · 2 need your
+  input: Mobile, Course”* (optional setting: highlight fields on the page). **Never submits a form**, and never touches
+  password, card, CVV, bank, OTP or captcha fields
 
 **PDF forms** (*Fill a PDF*)
 - Fillable PDFs are filled directly and stay editable
@@ -124,7 +125,7 @@ node scripts/package.mjs         # build dist/form-filler-<version>.zip for the 
 | Path | What's there |
 |---|---|
 | `manifest.json`, `background.js` | Manifest V3 extension, fill orchestration |
-| `content/` | in-page scanning, filling, highlights, locker buttons (`fillcore.js` holds the shared matching rules) |
+| `content/` | in-page scanning, filling, optional highlights, locker buttons (`fillcore.js` holds the shared matching rules) |
 | `lib/` | encrypted vault, profile schema, AI modes (`ai.js`, `gemini-core.js`), PDF text/geometry, image tools |
 | `popup/`, `options/`, `pdf/`, `picker/` | popup, settings & profile pages, Fill a PDF, Pick from locker |
 | `server/` | the free AI server (`server.mjs`, `limits.mjs`) |

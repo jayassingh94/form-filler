@@ -103,8 +103,14 @@ function renderResult(r) {
   if (r.mode === 'none') {
     lines.push('<div class="notice small">No fillable fields found on this page.</div>');
   } else {
-    lines.push(`<div class="line"><span class="dot" style="background:#22c55e"></span><b>${r.green}</b> filled</div>`);
-    lines.push(`<div class="line"><span class="dot" style="background:#facc15"></span><b>${r.yellow}</b> to check / fill yourself</div>`);
+    // "Filled 12 fields · 2 need your input: Mobile, Course"
+    const names = (list, max = 6) => list.length <= max ? list.map(esc).join(', ') : `${list.slice(0, max).map(esc).join(', ')} +${list.length - max} more`;
+    const filled = r.filled ?? r.green;
+    const needs = r.needs || [];
+    lines.push(`<div class="summary"><b>Filled ${filled} field${filled === 1 ? '' : 's'}</b>${needs.length
+      ? ` · ${needs.length} need${needs.length === 1 ? 's' : ''} your input: <span class="names">${names(needs)}</span>`
+      : ' · nothing left for you'}</div>`);
+    if (r.check?.length) lines.push(`<div class="small" style="margin-top:4px">Please check: ${names(r.check)}</div>`);
     if (r.kept) lines.push(`<div class="line small muted">${r.kept} already had a value (left as is)</div>`);
   }
   if (r.sensitive) lines.push(`<div class="line small muted">🛡️ ${r.sensitive} sensitive field(s) skipped (password, card, bank, OTP…)</div>`);
