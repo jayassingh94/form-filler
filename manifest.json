@@ -11,7 +11,8 @@
     "activeTab"
   ],
   "host_permissions": [
-    "https://generativelanguage.googleapis.com/*"
+    "https://generativelanguage.googleapis.com/*",
+    "https://form-filler-api-2yvs.onrender.com/*"
   ],
   "optional_host_permissions": [
     "http://*/*",
