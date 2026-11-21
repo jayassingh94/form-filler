@@ -26,8 +26,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(EXT_ORIGIN)) return;
   const page = sender.url.slice(EXT_ORIGIN.length);
 
+  if (msg?.type === 'ff-pending' && page.startsWith('popup/')) {
+    // Chrome's site-permission prompt usually closes the popup: remember the fill so it can run once the site is allowed.
+    const { tabId, profileId, overwrite, origin } = msg;
+    chrome.storage.session.set({ ff_pending: { tabId, profileId, overwrite: !!overwrite, origin, at: Date.now() } }).then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (msg?.type === 'ff-pending-cancel' && page.startsWith('popup/')) {
+    clearPending(msg.tabId).then(() => sendResponse({ ok: true }));
+    return true;
+  }
   if (msg?.type === 'ff-fill' && page.startsWith('popup/')) {
-    handleFill(msg).then(sendResponse, (e) => sendResponse({ ok: false, error: e.message }));
+    // the popup is still open and does it itself: the pending fill for this tab isn't needed any more
+    clearPending(msg.tabId)
+      .then(() => fillOnce(msg, { reuseRecent: !!msg.afterGrant }))
+      .then(sendResponse, (e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }
   // The picker iframe lives inside a web page, where IndexedDB may be partitioned,
@@ -60,6 +73,96 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
+// ---------------- fill after the site permission is granted ----------------
+const PENDING_TTL_MS = 2 * 60 * 1000;
+const inflight = new Map(); // tabId -> Promise of the running fill
+const recent = new Map();   // tabId -> { result, at } (so a fill requested right after another isn't run twice)
+
+async function clearPending(tabId) {
+  const { ff_pending: p } = await chrome.storage.session.get('ff_pending');
+  if (p && (tabId == null || p.tabId === tabId)) await chrome.storage.session.remove('ff_pending');
+}
+
+/** One fill per tab at a time; with reuseRecent, a fill that just finished (≤ 10 s) is reused. */
+function fillOnce(args, { reuseRecent = false } = {}) {
+  const tabId = args.tabId;
+  if (inflight.has(tabId)) return inflight.get(tabId);
+  const r = recent.get(tabId);
+  if (reuseRecent && r && Date.now() - r.at < 10000) return Promise.resolve(r.result);
+  const p = handleFill(args)
+    .then(async (result) => {
+      recent.set(tabId, { result, at: Date.now() });
+      // the popup shows this result if it is opened again on this tab
+      await chrome.storage.session.set({ ff_last_result: { tabId, result, at: Date.now() } });
+      return result;
+    })
+    .finally(() => inflight.delete(tabId));
+  inflight.set(tabId, p);
+  return p;
+}
+
+/** "Filled 12 fields · 2 need your input: Mobile, Course" */
+function summaryText(r) {
+  if (r.mode === 'none') return 'No fillable fields found on this page.';
+  const filled = r.filled ?? r.green ?? 0;
+  const needs = r.needs || [];
+  const names = needs.length <= 4 ? needs.join(', ') : `${needs.slice(0, 4).join(', ')} +${needs.length - 4} more`;
+  return `Filled ${filled} field${filled === 1 ? '' : 's'}${needs.length ? ` · ${needs.length} need${needs.length === 1 ? 's' : ''} your input: ${names}` : ''}`;
+}
+
+async function notify(tabId, title, message) {
+  const id = `ff-${tabId}-${Date.now()}`;
+  await chrome.notifications.create(id, { type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'), title, message, priority: 1 });
+  await chrome.storage.session.set({ [`ff_note_${id}`]: tabId });
+}
+
+chrome.notifications.onClicked.addListener(async (id) => {
+  const key = `ff_note_${id}`;
+  const tabId = (await chrome.storage.session.get(key))[key];
+  if (tabId != null) {
+    try { const t = await chrome.tabs.update(tabId, { active: true }); await chrome.windows.update(t.windowId, { focused: true }); } catch { /* tab closed */ }
+  }
+  chrome.notifications.clear(id);
+  chrome.storage.session.remove(key);
+});
+
+/** Chrome granted new site access: finish a fill that was waiting for it. */
+async function onPermissionAdded(perm) {
+  const { ff_pending: p } = await chrome.storage.session.get('ff_pending');
+  if (!p || !(perm.origins || []).includes(p.origin)) return;
+  await chrome.storage.session.remove('ff_pending');
+  if (Date.now() - p.at > PENDING_TTL_MS) return;
+  // the tab must still be open and on the site that was allowed
+  let tab;
+  try { tab = await chrome.tabs.get(p.tabId); } catch { return; }
+  if (!originMatches(p.origin, tab.url)) {
+    await notify(p.tabId, 'Form Filler', 'That tab moved to another page, so nothing was filled. Click Fill this form again.');
+    return;
+  }
+  try {
+    const result = await fillOnce({ tabId: p.tabId, profileId: p.profileId, overwrite: p.overwrite });
+    // if the popup is still open it shows the result itself
+    const popupOpen = chrome.runtime.getContexts ? (await chrome.runtime.getContexts({ contextTypes: ['POPUP'] })).length > 0 : false;
+    const text = summaryText(result);
+    if (!popupOpen) await notify(p.tabId, 'Form Filler', `${text}${/[.…]$/.test(text) ? '' : '.'} Nothing was submitted.`);
+  } catch (e) {
+    await notify(p.tabId, 'Form Filler', e.message === 'LOCKED'
+      ? 'Form Filler is locked. Open it, unlock, and click Fill this form again.'
+      : `Couldn't fill this page: ${e.message}`);
+  }
+}
+chrome.permissions.onAdded.addListener(onPermissionAdded);
+
+/** Does a match pattern like "https://example.com/*" or "file:///*" cover this URL? */
+function originMatches(pattern, url) {
+  try {
+    const u = new URL(url);
+    if (pattern === 'file:///*') return u.protocol === 'file:';
+    const m = pattern.match(/^(https?):\/\/([^/]+)\/\*$/);
+    return !!m && u.protocol === m[1] + ':' && u.hostname === m[2];
+  } catch { return false; }
+}
 
 async function handleFill({ tabId, profileId, overwrite }) {
   const vault = await loadVault(); // throws LOCKED if locked

@@ -12,6 +12,7 @@ Form Filler fills in web and PDF application forms with details the user has sav
 | `storage` | Stores the user's encrypted profiles, settings and document metadata on their own computer, and keeps the unlocked key in memory-only session storage. |
 | `unlimitedStorage` | The Document Locker stores the user's own documents (photo, signature, certificates) encrypted on their computer; these can exceed the default quota. |
 | `scripting` | When the user clicks “Fill this form”, injects the fill script into that tab to read the form's fields and fill them. Nothing is injected otherwise. |
+| `notifications` | After the user clicks “Fill this form” on a new site, Chrome's permission prompt closes the popup; the fill then finishes in the background and a notification tells the user the result (“Filled 12 fields · 2 need your input: Mobile, Course”). No other notifications are shown. |
 | `alarms` | Runs the auto-lock timer that locks the encrypted data after 5 minutes without use. |
 | `activeTab` | When the user clicks the toolbar icon, lets the popup read the current tab's address so it can ask for permission for that one site. |
 | Optional host permissions `http://*/*`, `https://*/*`, `file:///*` | Requested for one site at a time, only when the user clicks “Fill this form” on that site, so the extension can fill forms there. Users can remove access in Settings. |

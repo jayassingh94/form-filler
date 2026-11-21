@@ -8,7 +8,8 @@
     "scripting",
     "alarms",
     "unlimitedStorage",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",

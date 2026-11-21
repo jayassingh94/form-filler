@@ -8,6 +8,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 
 let tab = null;
 let originPattern = null;
+let alreadyGranted = false;
 
 const openOptions = (hash) => {
   chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') + (hash ? '#' + hash : '') });
@@ -44,6 +45,10 @@ async function boot() {
     : '';
   $('#ai-note-text').textContent = note;
   $('#ai-note').classList.toggle('hidden', !note);
+  // reopened after a fill (e.g. one finished in the background after Chrome's permission prompt): show it
+  await tabReady;
+  const lastFill = (await chrome.storage.session.get('ff_last_result')).ff_last_result;
+  if (lastFill && tab && lastFill.tabId === tab.id && Date.now() - lastFill.at < 10 * 60 * 1000 && !$('#result').textContent.trim()) renderResult(lastFill.result);
 }
 
 // Work out the site permission pattern up front so the click handler can request it synchronously
@@ -54,6 +59,7 @@ async function readTab() {
   [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const site = sitePattern(tab?.url || tab?.pendingUrl);
   originPattern = site.pattern || null;
+  if (originPattern) alreadyGranted = await chrome.permissions.contains({ origins: [originPattern] }).catch(() => false);
   if (!originPattern) {
     $('#fill').disabled = true;
     $('#result').innerHTML = site.reason === 'restricted'
@@ -66,9 +72,14 @@ const tabReady = readTab();
 $('#fill').onclick = async () => {
   if (!originPattern) await tabReady;
   if (!originPattern) return;
+  const req = { tabId: tab.id, profileId: $('#profile').value, overwrite: $('#overwrite').checked };
+  // On a new site Chrome's permission prompt usually closes this popup. Tell the background first, so it fills
+  // the form by itself as soon as the site is allowed (and shows a notification).
+  if (!alreadyGranted) chrome.runtime.sendMessage({ type: 'ff-pending', ...req, origin: originPattern });
   // Chrome shows the site-access prompt only during a user gesture, so request it right away.
   chrome.permissions.request({ origins: [originPattern] }).then(async (granted) => {
     if (!granted) {
+      chrome.runtime.sendMessage({ type: 'ff-pending-cancel', tabId: tab.id });
       showResult(`<div class="err small">Permission for this site was not granted, so nothing was filled.</div>`);
       return;
     }
@@ -77,9 +88,9 @@ $('#fill').onclick = async () => {
     $('#fill').textContent = 'Filling…';
     showResult('<div class="muted small">Reading the form fields…</div>');
     try {
-      const r = await chrome.runtime.sendMessage({
-        type: 'ff-fill', tabId: tab.id, profileId: $('#profile').value, overwrite: $('#overwrite').checked
-      });
+      // afterGrant: if the background already filled it right after the permission, reuse that result
+      const r = await chrome.runtime.sendMessage({ type: 'ff-fill', ...req, afterGrant: !alreadyGranted });
+      alreadyGranted = true;
       if (!r?.ok) throw new Error(r?.error || 'Unknown error');
       renderResult(r);
     } catch (e) {
