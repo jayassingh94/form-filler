@@ -282,6 +282,8 @@
   function labelKey(label) {
     if (isPostApplied(label) || isOfficialLabel(label)) return null;
     const n = translateHindi(normLabel(label));
+    if (/शैक्षणिक\s*योग्यता|शैक्षिक\s*योग्यता/.test(String(label))) return 'education.summary';
+    if (/कार्य\s*अनुभव/.test(String(label)) && !/प्रमाण|कुल/.test(String(label))) return 'work.summary';
     if (!n) return null;
     // "…the details and photograph of Shri ____": the name goes after Shri / Smt / Kumari
     if (/\b(shri|sri|smt|kumari|km|mr|mrs|ms)\.?$/.test(n)) return 'personal.fullName';
@@ -301,6 +303,10 @@
     if (hasName && !NOT_PERSON.test(n) && !/\b(first|middle|last|sur|given|family|fore)\s*-?\s*name|surname|initials?|\bfather|\bmother|\bguardian|\bspouse|\bhusband|\bwife/.test(n)) {
       return 'personal.fullName';
     }
+    // whole-history text areas ("Academic Qualifications indicating subject, year of passing…",
+    // "Work Experience in chronological order…"); a plain "Educational Qualification" (often a dropdown) is not one
+    if (/\b(academic|educational|education)\s+qualifications\b|\bqualifications?\s+(details|indicating|with)\b|\bacademic qualifications?\b.*\b(indicating|subject|year of passing|division)\b/.test(n) || /शैक्षणिक\s*योग्यता|शैक्षिक\s*योग्यता/.test(String(label))) return 'education.summary';
+    if ((/\b(work|job|employment|professional)\s+(experience|history)\b|\bexperience\s+(details|in chronological)\b/.test(n) || /कार्य\s*अनुभव/.test(String(label))) && !/\b(total|years?|months?|duration|period|certificates?|testimonials?)\b/.test(n)) return 'work.summary';
     // addresses
     const n2 = n.replace(/\bwith (pin|zip)( ?code)?\b/, '');
     if (/\baddress\b/.test(n2) && !/e-?mail|web|ip address|url|office|employer|company|institut|school|college|\bline ?([1-9]|one|two|three)\b|\bpin\b|\bzip\b|city|district|state|phone|mobile|proof/.test(n2)) {

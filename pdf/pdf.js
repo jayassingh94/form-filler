@@ -314,8 +314,34 @@ function resolveCheckGroups() {
 function customKeyFor(label) {
   const n = C.norm(label);
   if (!n) return null;
-  const i = (profile().custom || []).findIndex((c) => { const cn = C.norm(c.label); return cn && (cn === n || (cn.length > 3 && n.includes(cn))); });
+  const custom = profile().custom || [];
+  let i = custom.findIndex((c) => { const cn = C.norm(c.label); return cn && (cn === n || (cn.length > 3 && n.includes(cn))); });
+  // "…who has applied for the post of ____" / "आवेदित पद": your custom "Post applied for" field, however it is worded
+  if (i < 0 && C.isPostApplied(label)) i = custom.findIndex((c) => c.label && (C.isPostApplied(c.label) || /^(post|position)\b/i.test(String(c.label).trim())));
   return i >= 0 ? `custom.${i}` : null;
+}
+
+/** Labels without a colon count when we recognise them ("Full Name", "Date of Birth", "Mobile No."). */
+const knownLabel = (label) => label.length <= 60 && !!(customKeyFor(label) || C.labelKey(label) || C.heuristicKey({ label }));
+const boxesMeet = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+/**
+ * One value per blank: where two text boxes on a page overlap, keep the one from the PDF's own text layer
+ * (exact underline / writing area), then the one that has a value, and drop the other.
+ */
+function dropOverlaps() {
+  const text = items.filter((i) => i.kind === 'text' && !i.acro && !i.edited && !i.official);
+  const rank = (i) => (i.fromText ? 2 : 0) + (i.text ? 1 : 0);
+  const gone = new Set();
+  for (const a of text) for (const b of text) {
+    if (a === b || gone.has(a) || gone.has(b) || a.page !== b.page || !boxesMeet(a.box, b.box)) continue;
+    const ix = Math.min(a.box.x + a.box.w, b.box.x + b.box.w) - Math.max(a.box.x, b.box.x);
+    const iy = Math.min(a.box.y + a.box.h, b.box.y + b.box.h) - Math.max(a.box.y, b.box.y);
+    const small = Math.min(a.box.w * a.box.h, b.box.w * b.box.h);
+    if (ix * iy < small * 0.25) continue; // just touching
+    gone.add(rank(a) >= rank(b) ? b : a);
+  }
+  if (gone.size) items = items.filter((i) => !gone.has(i));
 }
 
 // ---------------- AcroForm path ----------------
@@ -451,6 +477,8 @@ function fitAll() {
       it.note ||= 'Smaller text to fit: check it is readable';
     }
     it.fontSize = fit;
+    // a writing area under a heading: start right under it, only as tall as the lines need
+    if (it.area) it.box.h = Math.min(it.box.h, (it.text.split('\n').length * fit * 1.3 + fit * 0.5) / vp.height);
   }
 }
 
@@ -507,12 +535,25 @@ async function detectWithAI() {
     const text = await pageText(p);
     const zone = officialZone(text);
     const lines = [...G.underlineRuns(text), ...(await printedRules(p))];
-    const sorted = [...raw].map((r) => ({ r, box: G.fromBox2d(r.box_2d) })).filter((x) => x.box).sort((a, b) => a.box.y - b.box.y);
-    for (const { r, box: b0 } of sorted) {
+    // The PDF's own text layer is exact where it has blanks inside a sentence ("…of Shri ____ S/o.____ and resident
+    // of (R/O) ____ … post of ____") and writing areas under a heading: use those, in reading order, one value each,
+    // instead of AI boxes that stack values or span two lines there.
+    const tl = text.length ? G.blanksFromTextLayer(text, knownLabel) : [];
+    const sentence = tl.filter((b) => b.kind === 'text' && b.sentence);
+    const areas = tl.filter((b) => b.area && candidateKeys(b.label, null).length);
+    const near = (box) => sentence.some((s) => boxesMeet(box, { x: s.box.x, y: s.box.y - s.box.h * 0.4, w: s.box.w, h: s.box.h * 1.8 }));
+    const ai = [...raw].map((r) => ({ r, box: G.fromBox2d(r.box_2d) })).filter((x) => x.box && !(x.r.kind !== 'checkbox' && near(x.box)));
+    const fromText = [
+      ...sentence.map((b) => ({ r: { label: b.label, kind: 'text', key: null, confidence: 'high' }, box: b.box, fromText: true })),
+      ...areas.filter((a) => !ai.some((x) => boxesMeet(x.box, a.box))).map((b) => ({ r: { label: b.label, kind: 'text', key: null, confidence: 'high' }, box: b.box, fromText: true }))
+    ];
+    const sorted = [...ai, ...fromText].sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
+    for (const { r, box: b0, fromText: exact } of sorted) {
       let box = b0;
       if (r.kind === 'skip') continue;
       if (C.isSensitive({ label: r.label })) { skipped++; continue; }
-      if (r.kind !== 'checkbox') {
+      if (exact && /signature|photo|thumb|office use/i.test(r.label) && !candidateKeys(r.label, null).length) continue;
+      if (r.kind !== 'checkbox' && !exact) {
         // sit on the printed line the box belongs to, and never over printed text
         box = G.snapByLabel(box, r.label, p.text, lines, C.norm);
         if (p.text.length) {
@@ -520,6 +561,7 @@ async function detectWithAI() {
           if (!fixed) { noRoom++; continue; }
           box = fixed;
         }
+        if (near(box)) continue; // snapped onto a sentence blank that the text layer already fills
       }
       if (zone.test({ label: r.label, box })) { items.push(officialItem(p.num, box, r.label)); continue; }
       const keys = r.kind === 'checkbox'
@@ -531,6 +573,7 @@ async function detectWithAI() {
         items.push(newItem({ ...base, kind: 'check', option: r.option || r.label, group: `p${p.num}:${key || r.label}` }));
       } else {
         const it = newItem({ ...base, kind: 'text', cells: r.cells > 1 ? r.cells : 0, upper: !!r.uppercase || r.cells > 1 });
+        if (exact) { it.fromText = true; if (areas.some((a) => a.box === b0)) it.area = true; }
         applyValue(it);
         items.push(it);
       }
@@ -539,6 +582,7 @@ async function detectWithAI() {
   resolveCheckGroups();
   groupAddresses();
   resolveAddressGroups();
+  dropOverlaps();
   fitAll();
   renderAll();
   return summary(skipped) + (noRoom ? ` ${noRoom} box(es) had no free space next to their label and were left out; add them with "+ Text".` : '');
@@ -554,8 +598,7 @@ async function detectOffline() {
     const text = await pageText(p);
     const rules = await printedRules(p);
     const used = new Set();
-    // labels without a colon count when we recognise them ("Full Name", "Date of Birth", "Mobile No.")
-    const known = (label) => label.length <= 60 && !!(customKeyFor(label) || C.labelKey(label) || C.heuristicKey({ label }));
+    const known = knownLabel;
     const upper = /capital|block letters/i.test(text.map((t) => t.text).join(' '));
     const zone = officialZone(text);
     for (const b of G.blanksFromTextLayer(text, known)) {
@@ -572,7 +615,7 @@ async function detectOffline() {
       const keys = candidateKeys(b.label, null);
       const key = keys[0] || null;
       // underscores mark the exact spot; otherwise use a drawn line next to the label, if there is one
-      const rule = b.underline ? null : ruleForLabel(b.box, rules, used);
+      const rule = b.underline || b.area ? null : ruleForLabel(b.box, rules, used);
       // without a colon or a printed line, only trust precise labels ("Full Name"), not keyword guesses
       if (!b.colon && !rule && !customKeyFor(b.label) && !C.labelKey(b.label)) continue;
       const lines = [];
@@ -582,6 +625,8 @@ async function detectOffline() {
       } else lines.push(b.box);
       lines.forEach((box, n) => {
         const it = newItem({ page: p.num, box, altBox: !rule && !n ? b.alt : null, label: n ? '' : b.label, key, keys: n ? [key] : keys, conf: key ? 'high' : 'low', upper });
+        it.fromText = true;
+        if (b.area) it.area = true;
         applyValue(it);
         items.push(it);
       });
@@ -592,6 +637,7 @@ async function detectOffline() {
   resolveCheckGroups();
   groupAddresses();
   resolveAddressGroups();
+  dropOverlaps();
   fitAll();
   renderAll();
   const ticks = items.some((i) => i.kind === 'check');
