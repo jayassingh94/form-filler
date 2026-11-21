@@ -51,19 +51,34 @@ test('daily limit: friendly error, quota 0; unreachable server: clear message', 
   await assert.rejects(AI.testGemini({}), /Couldn't reach Form Filler's AI service.*Offline matching still works/);
 });
 
-test('no server address configured (as shipped): free mode is unavailable and nothing is contacted', async () => {
-  assert.match(original, /export const BACKEND_URL = '';/, 'the repo ships without a server address');
-  // a fresh Node process loads the real (empty) config
+test('a build without a server address: free mode is unavailable and nothing is contacted', async () => {
+  // check it on a temporary copy of the code with an empty address, whatever lib/config.js currently says
+  const os = await import('node:os');
+  const path = await import('node:path');
   const { execFileSync } = await import('node:child_process');
+  const root = new URL('..', import.meta.url).pathname;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-noserver-'));
+  for (const d of ['lib', 'content']) fs.cpSync(path.join(root, d), path.join(tmp, d), { recursive: true });
+  fs.writeFileSync(path.join(tmp, 'lib/config.js'), "export const BACKEND_URL = '';\n");
   const code = `
     globalThis.chrome = { storage: { local: { get: async () => ({}), set: async () => {} } } };
     let called = false; globalThis.fetch = async () => { called = true; };
-    const AI = await import(${JSON.stringify(new URL('../lib/ai.js', import.meta.url).href)});
+    const AI = await import(${JSON.stringify('file://' + path.join(tmp, 'lib/ai.js'))});
     let msg = ''; try { await AI.testGemini({}); } catch (e) { msg = e.message; }
     console.log(JSON.stringify({ configured: AI.serviceConfigured(), available: AI.aiAvailable({}), called, msg }));`;
-  const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }).trim().split('\n').pop());
-  assert.deepEqual([out.configured, out.available, out.called], [false, false, false]);
-  assert.match(out.msg, /isn't set up in this version/);
+  try {
+    const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' }).trim().split('\n').pop());
+    assert.deepEqual([out.configured, out.available, out.called], [false, false, false]);
+    assert.match(out.msg, /isn't set up in this version/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('the configured server address has a matching host permission', () => {
+  const m = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  const url = (original.match(/BACKEND_URL = '([^']*)'/) || [])[1];
+  if (!url) return; // no server configured: nothing to check
+  const u = new URL(url);
+  assert.ok(m.host_permissions.includes(`${u.protocol}//${u.hostname}/*`), `manifest needs ${u.protocol}//${u.hostname}/*`);
 });
 
 test('off mode never sends anything', async () => {
