@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Sample dynamic form (late, shadow DOM, iframe)</title>
+<style>body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px}label{display:block;margin:8px 0}input,select{padding:6px;min-width:260px}iframe{border:1px solid #ccc;width:100%;height:150px}</style></head>
+<body>
+  <h1>Apply today (dynamic sample)</h1>
+  <p>Test page for Form Filler. The form appears 2 seconds after the page loads, inside a web component's shadow
+    root; City stays disabled until you pick a State, then loads its options. More fields sit in an iframe below.
+    Click <b>Fill this form</b> right away: Form Filler waits for the form. Nothing here is sent anywhere.</p>
+  <div id="slot">Loading form…</div>
+  <h2>More details (in an iframe)</h2>
+  <iframe src="sample-dynamic-inner.html" title="More details"></iframe>
+  <script>
+    customElements.define('apply-form', class extends HTMLElement {
+      connectedCallback() {
+        const r = this.attachShadow({ mode: 'open' });
+        r.innerHTML = `<form onsubmit="return false">
+          <label>Full Name <input name="fullname"></label>
+          <label>Email <input type="email" name="email"></label>
+          <label>Mobile <input type="tel" name="mobile"></label>
+          <label>State <select name="state_id"><option value="">Select State</option><option>Punjab</option><option>Uttar Pradesh</option></select></label>
+          <label>City <select name="city_id" disabled><option value="">Select City</option></select></label>
+          <label>Enter Captcha <input name="captcha"></label></form>`;
+        const st = r.querySelector('[name=state_id]'), city = r.querySelector('[name=city_id]');
+        st.addEventListener('change', () => {
+          city.disabled = true;
+          setTimeout(() => {
+            city.innerHTML = '<option value="">Select City</option>' + (st.value === 'Uttar Pradesh' ? '<option>Lucknow</option><option>Kanpur</option>' : '<option>Phagwara</option><option>Jalandhar</option>');
+            city.disabled = false;
+          }, 1500);
+        });
+      }
+    });
+    setTimeout(() => { document.getElementById('slot').innerHTML = '<apply-form></apply-form>'; }, 2000);
+  </script>
+</body>
+</html>

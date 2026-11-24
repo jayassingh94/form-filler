@@ -164,18 +164,60 @@ function originMatches(pattern, url) {
   } catch { return false; }
 }
 
+// Every step of a fill has a time limit, so the popup never waits forever (a frame that never finishes
+// loading, a page dialog that blocks the page, a slow AI answer).
+const LIMITS = { inject: 8000, scan: 8000, ai: 30000, fillFrame: 20000, lateForm: [1200, 2500] };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function withTimeout(promise, ms, what) {
+  let t;
+  return Promise.race([promise, new Promise((_, rej) => { t = setTimeout(() => rej(Object.assign(new Error(`${what} took longer than ${Math.round(ms / 1000)} s`), { timeout: true })), ms); })])
+    .finally(() => clearTimeout(t));
+}
+
+/**
+ * Run a script in every frame of the tab without waiting for slow frames to finish loading; if some frame
+ * can't be used (an error page, a frame that hangs), fall back to the main frame. Returns the per-frame results.
+ */
+async function runInFrames(tabId, what, inj) {
+  try {
+    return await withTimeout(chrome.scripting.executeScript({ target: { tabId, allFrames: true }, injectImmediately: true, ...inj }), LIMITS[what], what);
+  } catch (e) {
+    try {
+      return await withTimeout(chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, injectImmediately: true, ...inj }), LIMITS[what], what);
+    } catch { throw e; }
+  }
+}
+
+async function scanTab(tabId) {
+  await runInFrames(tabId, 'inject', { files: ['content/fillcore.js', 'content/content.js'] });
+  return runInFrames(tabId, 'scan', { func: () => window.__formFiller?.scan() });
+}
+
+/** Origins of form frames from other sites that Form Filler has no access to yet ("https://forms.example/*"). */
+async function blockedFrames(scans) {
+  const origins = [...new Set(scans.flatMap((r) => r.result?.frames || []))];
+  const out = [];
+  for (const o of origins) {
+    const pattern = `${o}/*`;
+    if (!(await chrome.permissions.contains({ origins: [pattern] }).catch(() => true))) out.push(pattern);
+  }
+  return out;
+}
+
 async function handleFill({ tabId, profileId, overwrite }) {
   const vault = await loadVault(); // throws LOCKED if locked
   const profile = vault.profiles.find((p) => p.id === profileId) || vault.profiles[0];
 
-  await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    files: ['content/fillcore.js', 'content/content.js']
-  });
-  const scans = await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    func: () => window.__formFiller?.scan()
-  });
+  // forms that appear a moment after the page loads (rendered by JavaScript, opened in a dialog): look again
+  let scans = await scanTab(tabId);
+  // (also when only a side frame has fields but the page itself has none yet)
+  const mainCount = (sc) => sc.find((r) => r.frameId === 0)?.result?.fields?.length || 0;
+  for (const wait of LIMITS.lateForm) {
+    if (mainCount(scans) > 0) break;
+    await sleep(wait);
+    scans = await scanTab(tabId);
+  }
+  const blocked = await blockedFrames(scans);
 
   const all = [];
   let fileInputs = 0;
@@ -187,7 +229,7 @@ async function handleFill({ tabId, profileId, overwrite }) {
   const candidates = all.filter((x) => !x.d.sensitive);
   const sensitive = all.length - candidates.length;
   if (!candidates.length) {
-    return { ok: true, green: 0, yellow: 0, kept: 0, sensitive, fileInputs, mode: 'none' };
+    return { ok: true, green: 0, yellow: 0, kept: 0, sensitive, fileInputs, mode: 'none', blockedFrames: blocked };
   }
 
   // Map fields -> profile keys. Only labels/options go to the AI.
@@ -197,10 +239,12 @@ async function handleFill({ tabId, profileId, overwrite }) {
   const model = aiMode(vault.settings) === 'own' ? (vault.settings.model || DEFAULT_MODEL) : DEFAULT_MODEL;
   if (aiAvailable(vault.settings)) {
     try {
-      mapping = await mapFieldsWithGemini(vault.settings, candidates.map((x) => x.d), keyCatalog(profile));
+      // a slow or failing AI never blocks the fill: offline matching takes over
+      mapping = await withTimeout(mapFieldsWithGemini(vault.settings, candidates.map((x) => x.d), keyCatalog(profile)), LIMITS.ai, 'AI matching');
       mode = 'ai';
     } catch (e) {
-      aiError = e.message;
+      mapping = new Map();
+      aiError = e.timeout ? 'AI matching took too long' : e.message;
     }
   }
   if (mode === 'offline') {
@@ -234,12 +278,20 @@ async function handleFill({ tabId, profileId, overwrite }) {
 
   const totals = { green: 0, yellow: 0, kept: 0, filled: 0, needs: [], check: [] };
   const highlight = !!vault.settings.highlight; // off by default: no colours on the page
+  const stuck = [];
   for (const [frameId, args] of perFrame) {
-    const [res] = await chrome.scripting.executeScript({
-      target: { tabId, frameIds: [frameId] },
-      func: (a) => window.__formFiller.fill(a),
-      args: [{ ...args, overwrite: !!overwrite, highlight }]
-    });
+    let res;
+    try {
+      [res] = await withTimeout(chrome.scripting.executeScript({
+        target: { tabId, frameIds: [frameId] },
+        func: (a) => window.__formFiller.fill(a),
+        args: [{ ...args, overwrite: !!overwrite, highlight }]
+      }), LIMITS.fillFrame, 'Filling');
+    } catch (e) {
+      // e.g. the page opened a dialog (alert) when a value changed, which pauses everything on the page
+      stuck.push(frameId);
+      continue;
+    }
     const r = res?.result;
     if (!r) continue;
     for (const k of ['green', 'yellow', 'kept', 'filled']) totals[k] += r[k] || 0;
@@ -249,5 +301,8 @@ async function handleFill({ tabId, profileId, overwrite }) {
   totals.needs = [...new Set(totals.needs)];
   totals.check = [...new Set(totals.check)];
   const fallbackModel = mode === 'ai' && lastModelUsed && lastModelUsed !== model ? lastModelUsed : null;
-  return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel, aiLimit: /daily limit|today's/.test(aiError || ''), remaining: aiMode(vault.settings) === 'service' ? lastRemaining : null, limit: lastLimit };
+  return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel, aiLimit: /daily limit|today's/.test(aiError || ''),
+    remaining: aiMode(vault.settings) === 'service' ? lastRemaining : null, limit: lastLimit,
+    stuck: stuck.length ? 'Part of the page stopped responding while filling (often a pop-up message on the page). Some fields may be filled: check the form.' : null,
+    blockedFrames: blocked };
 }

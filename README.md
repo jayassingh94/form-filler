@@ -83,6 +83,7 @@ key** (free key at [aistudio.google.com/apikey](https://aistudio.google.com/apik
 cd test && python3 -m http.server 8765
 ```
 Open <http://localhost:8765/sample-form.html>, click the Form Filler icon → **Fill this form**.
+`sample-dynamic-form.html` tests a form that appears late, inside shadow DOM, with a dependent City dropdown and an iframe.
 For PDFs, open **Fill a PDF** from the popup and try `test/sample-flat-form.pdf`, `test/sample-bilingual-form.pdf`,
 `test/sample-identity-certificate.pdf` or `test/sample-acroform.pdf`.
 

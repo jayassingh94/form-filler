@@ -170,9 +170,12 @@
     fields.clear();
     const out = [];
     const seenRadio = new Set();
-    const els = document.querySelectorAll('input, select, textarea');
+    // the page plus any open shadow roots (web components)
+    const els = deepQuery(document, 'input, select, textarea');
     for (const el of els) {
-      if (el.disabled || el.closest('[data-ff-ui]')) continue;
+      if (el.closest('[data-ff-ui]')) continue;
+      // a disabled dropdown is usually waiting for another one (City after State): fill it once it loads
+      if (el.disabled && !(el.tagName === 'SELECT' && visible(el))) continue;
       const type = (el.getAttribute('type') || '').toLowerCase();
       if (el.tagName === 'INPUT' && SKIP_TYPES.has(type)) continue;
 
@@ -210,7 +213,35 @@
       out.push(d);
     }
     const fileInputs = addLockerButtons();
-    return { fields: out, fileInputs };
+    return { fields: out, fileInputs, frames: frameOrigins() };
+  }
+
+  /** querySelectorAll that also looks inside open shadow roots. */
+  function deepQuery(root, sel) {
+    const out = [...root.querySelectorAll(sel)];
+    const walk = (r) => {
+      for (const el of r.querySelectorAll('*')) {
+        if (!el.shadowRoot) continue;
+        out.push(...el.shadowRoot.querySelectorAll(sel));
+        walk(el.shadowRoot);
+      }
+    };
+    walk(root);
+    return out;
+  }
+
+  /** Origins of large, visible frames on this page (a form embedded from another site needs its own access). */
+  function frameOrigins() {
+    const out = new Set();
+    for (const f of document.querySelectorAll('iframe, frame')) {
+      const r = f.getBoundingClientRect();
+      if (r.width < 250 || r.height < 150 || !visible(f)) continue;
+      try {
+        const u = new URL(f.src, location.href);
+        if (/^https?:$/.test(u.protocol) && u.origin !== location.origin) out.add(u.origin);
+      } catch { /* about:blank, srcdoc */ }
+    }
+    return [...out];
   }
 
   // ---------------- set values (framework friendly) ----------------
@@ -251,6 +282,7 @@
     }
 
     if (desc.tag === 'select') {
+      if (el.disabled) return 'nomatch'; // still loading (filled on a retry)
       if (!overwrite && el.selectedIndex > 0 && !C.isPlaceholderOption(el.options[el.selectedIndex].text, el.value)) return 'kept';
       let v = value;
       if (kind === 'date') v = C.formatDate(value, 'dd/mm/yyyy');
@@ -302,7 +334,10 @@
 
   /** Short, readable name of a field for the popup summary ("Mobile Number / मोबाइल नंबर :" → "Mobile Number"). */
   function shortLabel(f) {
-    let l = String(f.desc.label || f.desc.placeholder || f.desc.name || '');
+    // a raw field name ("field_qualification_level", "state_id") becomes "Qualification level", "State"
+    const pretty = (n) => String(n || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\-\[\].]+/g, ' ')
+      .replace(/\b(field|fld|txt|ddl|sel|input|id)\b/gi, ' ').replace(/\s+/g, ' ').trim().replace(/^./, (c) => c.toUpperCase());
+    let l = String(f.desc.label || f.desc.placeholder || pretty(f.desc.name) || '');
     l = l.split(/\s+\/\s+/)[0]
       .replace(/\s*\([^)]*\)\s*/g, ' ')
       .replace(/^[\s\d.)]+/, '')
@@ -325,9 +360,9 @@
       if (r === 'nomatch' && f.desc.tag === 'select') { pending.push(a); continue; }
       finish(f, a, r, stats);
     }
-    // Dependent dropdowns (e.g. District loads after State): retry a few times.
-    for (let round = 0; pending.length && round < 4; round++) {
-      await new Promise((res) => setTimeout(res, 600));
+    // Dependent dropdowns (e.g. City / District load after State): retry for up to ~6 s.
+    for (let round = 0; pending.length && round < 8; round++) {
+      await new Promise((res) => setTimeout(res, 750));
       for (let i = pending.length - 1; i >= 0; i--) {
         const a = pending[i];
         const f = fields.get(a.ffId);

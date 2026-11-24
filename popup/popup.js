@@ -93,12 +93,18 @@ $('#fill').onclick = async () => {
       <div class="lines"><span class="skeleton" style="width:70%;height:14px"></span><span class="skeleton" style="width:45%"></span></div></div>
       <span class="sr-only">Reading the form fields…</span></div>`);
     try {
-      // afterGrant: if the background already filled it right after the permission, reuse that result
-      const r = await chrome.runtime.sendMessage({ type: 'ff-fill', ...req, afterGrant: !alreadyGranted });
+      // afterGrant: if the background already filled it right after the permission, reuse that result.
+      // Never wait forever: after POPUP_LIMIT_MS show what we know, and the result if it arrives later.
+      const started = Date.now();
+      const r = await Promise.race([
+        chrome.runtime.sendMessage({ type: 'ff-fill', ...req, afterGrant: !alreadyGranted }),
+        new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('TIMEOUT'), { started })), POPUP_LIMIT_MS))
+      ]);
       alreadyGranted = true;
       if (!r?.ok) throw new Error(r?.error || 'Unknown error');
       renderResult(r);
     } catch (e) {
+      if (e.message === 'TIMEOUT') { showTimeout(e.started); return; }
       const m = e.message === 'LOCKED' ? 'Locked. Unlock and try again.'
         : /file:/.test(originPattern) && /Cannot access|permission/i.test(e.message)
           ? 'For local files, enable "Allow access to file URLs" for Form Filler in chrome://extensions, or serve the page over http://localhost.'
@@ -110,6 +116,27 @@ $('#fill').onclick = async () => {
     }
   });
 };
+
+const POPUP_LIMIT_MS = 60000;
+
+/** The fill took too long: say so plainly, and show the result if it still finishes. */
+function showTimeout(started) {
+  showResult(`<div class="notice small"><b>Form Filler stopped waiting after ${POPUP_LIMIT_MS / 1000} seconds.</b>
+    Some fields may already be filled, so check the form. If this keeps happening on this site, try again once
+    the page has finished loading, or turn AI matching off in Settings.</div>`);
+  const onChange = (changes, area) => {
+    const last = area === 'session' && changes.ff_last_result?.newValue;
+    if (!last || last.tabId !== tab?.id || last.at < started) return;
+    chrome.storage.onChanged.removeListener(onChange);
+    renderResult(last.result);
+  };
+  chrome.storage.onChanged.addListener(onChange);
+}
+
+/** Ask for access to form frames from other sites, then fill again (this click is the user gesture Chrome needs). */
+function allowFrames(origins) {
+  chrome.permissions.request({ origins }).then((ok) => { if (ok) $('#fill').click(); }).catch(() => {});
+}
 
 function setBusy(on) {
   const b = $('#fill');
@@ -130,11 +157,18 @@ function renderResult(r) {
   else if (r.remaining != null) m('sparkle', `Free AI: ${r.remaining} of ${r.limit ?? 10} uses left today`);
   else if (r.mode === 'offline') m('sparkle', 'Matched with offline keywords');
   if (r.fallbackModel) m('info', `Your Gemini model was busy, so ${esc(r.fallbackModel)} answered instead.`);
+  if (r.stuck) m('alert', esc(r.stuck), 'warn');
+  const hosts = (r.blockedFrames || []).map((o) => o.replace(/^https?:\/\//, '').replace(/\/\*$/, ''));
+  if (hosts.length) m('globe', `Part of this page comes from <b>${hosts.map(esc).join(', ')}</b>. <button class="link" id="allow-frames">Allow access and fill it too</button>`, 'warn');
 
   let top, secs = '';
-  if (r.mode === 'none') {
+  if (r.stuck) {
+    // cut short (a dialog or script froze the page): the counts from that part are unknown
+    top = `<div class="res-top">${CHECK_ANIM(true)}<div><div class="headline">Partly filled</div>
+      <div class="sub">The page stopped responding part-way. Check the form and fill in anything missing.</div></div></div>`;
+  } else if (r.mode === 'none') {
     top = `<div class="res-top">${CHECK_ANIM(true)}<div><div class="headline">No form fields here</div>
-      <div class="sub">Open the page with the application form, then try again.</div></div></div>`;
+      <div class="sub">${(r.blockedFrames || []).length ? 'The form seems to be inside a frame from another site (see below).' : 'Open the page with the application form (or open its form first), then try again.'}</div></div></div>`;
   } else {
     // "Filled 12 · 2 need you"
     const filled = r.filled ?? r.green;
@@ -148,6 +182,7 @@ function renderResult(r) {
   }
   showResult(`<div class="res fade-in">${top}${secs}${meta.length ? `<div class="res-meta">${meta.join('')}</div>` : ''}</div>
     <div class="res-foot">${icon('info', 13)} Nothing was submitted. Review the form before you submit.</div>`);
+  if (hosts.length) $('#allow-frames').onclick = () => allowFrames(r.blockedFrames);
 }
 window.__ffRenderResult = renderResult; // used by store/make-screenshots.mjs
 
