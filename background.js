@@ -84,21 +84,27 @@ async function clearPending(tabId) {
   if (p && (tabId == null || p.tabId === tabId)) await chrome.storage.session.remove('ff_pending');
 }
 
-/** One fill per tab at a time; with reuseRecent, a fill that just finished (≤ 10 s) is reused. */
+/**
+ * One fill per tab at a time; with reuseRecent, a fill that just finished (≤ 10 s) is reused. A click joins a fill
+ * that is already running only if it started moments ago (a double click, or the popup after the permission
+ * prompt); otherwise it starts afresh, so nothing can stay stuck. Every fill ends within FILL_DEADLINE_MS.
+ */
+const FILL_DEADLINE_MS = 90000, JOIN_WINDOW_MS = 30000;
 function fillOnce(args, { reuseRecent = false } = {}) {
   const tabId = args.tabId;
-  if (inflight.has(tabId)) return inflight.get(tabId);
+  const run = inflight.get(tabId);
+  if (run && Date.now() - run.at < JOIN_WINDOW_MS) return run.p;
   const r = recent.get(tabId);
   if (reuseRecent && r && Date.now() - r.at < 10000) return Promise.resolve(r.result);
-  const p = handleFill(args)
+  const p = withTimeout(handleFill(args), FILL_DEADLINE_MS, 'Filling this page')
     .then(async (result) => {
       recent.set(tabId, { result, at: Date.now() });
       // the popup shows this result if it is opened again on this tab
       await chrome.storage.session.set({ ff_last_result: { tabId, result, at: Date.now() } });
       return result;
     })
-    .finally(() => inflight.delete(tabId));
-  inflight.set(tabId, p);
+    .finally(() => { if (inflight.get(tabId)?.p === p) inflight.delete(tabId); });
+  inflight.set(tabId, { p, at: Date.now() });
   return p;
 }
 
@@ -236,6 +242,7 @@ async function handleFill({ tabId, profileId, overwrite }) {
   let mapping = new Map();
   let mode = 'offline';
   let aiError = null;
+  let aiBusy = null; // seconds to wait before AI is worth trying again
   const model = aiMode(vault.settings) === 'own' ? (vault.settings.model || DEFAULT_MODEL) : DEFAULT_MODEL;
   if (aiAvailable(vault.settings)) {
     try {
@@ -244,6 +251,7 @@ async function handleFill({ tabId, profileId, overwrite }) {
       mode = 'ai';
     } catch (e) {
       mapping = new Map();
+      aiBusy = e.timeout || e.busy ? (e.retryAfterSec || 30) : null;
       aiError = e.timeout ? 'AI matching took too long' : e.message;
     }
   }
@@ -302,7 +310,7 @@ async function handleFill({ tabId, profileId, overwrite }) {
   totals.check = [...new Set(totals.check)];
   const fallbackModel = mode === 'ai' && lastModelUsed && lastModelUsed !== model ? lastModelUsed : null;
   return { ok: true, ...totals, sensitive, fileInputs, mode, aiError, fallbackModel, aiLimit: /daily limit|today's/.test(aiError || ''),
-    remaining: aiMode(vault.settings) === 'service' ? lastRemaining : null, limit: lastLimit,
+    remaining: aiMode(vault.settings) === 'service' ? lastRemaining : null, limit: lastLimit, aiBusy,
     stuck: stuck.length ? 'Part of the page stopped responding while filling (often a pop-up message on the page). Some fields may be filled: check the form.' : null,
     blockedFrames: blocked };
 }

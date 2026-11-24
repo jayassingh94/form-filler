@@ -436,7 +436,8 @@ async function mapFields(descs) {
     try {
       return await mapFieldsWithGemini(vault.settings, descs, keyCatalog(profile()));
     } catch (err) {
-      aiWarning = `AI matching failed (${err.message}), so offline matching was used.`;
+      aiWarning = err.busy ? `AI is busy right now (try again in about ${err.retryAfterSec || 30} s), so offline matching was used.`
+        : `AI matching failed (${err.message}), so offline matching was used.`;
     }
   }
   const m = new Map();
@@ -522,7 +523,26 @@ function nearbyLabel(text, box) {
 
 // ---------------- flat path: AI ----------------
 $('#ai-consent').onchange = (e) => { $('#run-ai').disabled = !e.target.checked; };
-$('#run-ai').onclick = () => runStep(detectWithAI);
+$('#run-ai').onclick = () => runStep(detectWithAIOrOffline);
+
+/**
+ * AI detection; if the AI is busy, over today's limit or unreachable and the PDF has real text, find the blanks
+ * offline instead and say so (a scanned PDF needs the AI: then the error says when to try again).
+ */
+async function detectWithAIOrOffline() {
+  try {
+    return await detectWithAI();
+  } catch (err) {
+    if (!(err.busy || err.limit || err.offline)) throw err;
+    let hasText = false;
+    for (const p of pages) if ((await pageText(p)).length > 3) { hasText = true; break; }
+    if (!hasText) throw new Error(`${err.message.replace(/\s*;?\s*offline matching still works\.?/i, '.')} This PDF is scanned, so it needs the AI; or add boxes with "+ Text".`);
+    const text = await detectOffline();
+    aiWarning = err.busy ? `AI is busy right now (try again in about ${err.retryAfterSec || 30} s), so the blanks were found offline.`
+      : `${err.message} The blanks were found offline instead.`;
+    return text;
+  }
+}
 
 async function detectWithAI() {
   if (!aiAvailable(vault.settings)) throw new Error('AI matching is off in Settings.');

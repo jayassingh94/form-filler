@@ -107,7 +107,8 @@ To use a local server from the extension: `node scripts/set-backend.mjs http://l
 | Variable | Default | |
 |---|---|---|
 | `GEMINI_API_KEY` | required | Gemini key used by the server |
-| `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` | `gemini-3.5-flash-lite` / `gemini-3.6-flash` | model, and fallback when Gemini answers 503 |
+| `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` | `gemini-3.5-flash-lite` / `gemini-3.6-flash` | model, and fallback when Gemini is busy (503) or rate-limited (429) |
+| `GEMINI_TIMEOUT_MS` · `GEMINI_DEADLINE_MS` | `40000` · `60000` | per-request timeout, and the limit for all retries together |
 | `DAILY_LIMIT_PER_INSTALL` · `DAILY_LIMIT_PER_IP` · `GLOBAL_DAILY_CAP` | `10` · `30` · `1000` | daily limits (in memory only) |
 | `ALLOWED_ORIGINS` | empty | e.g. `chrome-extension://<extension id>` to accept only your extension |
 

@@ -41,31 +41,69 @@ test('after 3 retries falls back to gemini-3.6-flash', async () => {
 
 test('clear error when the fallback is busy too', async () => {
   const calls = script(busy(), busy(), busy(), busy(), busy());
-  await assert.rejects(AI.testGemini('K', 'gemini-3.5-flash-lite'), /busy right now \(503\).*4 times.*gemini-3\.6-flash once/);
+  await assert.rejects(AI.testGemini('K', 'gemini-3.5-flash-lite'), /busy right now \(503; tried gemini-3\.5-flash-lite 4 times and gemini-3\.6-flash\)\. Try again in about \d+ s\./);
   assert.equal(calls.length, 5);
   assert.equal(AI.lastModelUsed, null);
 });
 
-test('Retry-After header is respected (capped at 10 s)', async () => {
+test('Retry-After header is respected; a long one goes to the fallback model instead of waiting', async () => {
   waits.length = 0;
-  script(busy({ 'retry-after': '3' }), busy({ 'retry-after': '60' }), ok('OK'));
-  await AI.testGemini('K', 'm');
+  const calls = script(busy({ 'retry-after': '3' }), busy({ 'retry-after': '60' }), ok('OK'));
+  await AI.testGemini('K', 'gemini-3.5-flash-lite');
   assert.ok(waits[0] >= 3000 && waits[0] < 3300, `waited ${waits[0]}`);
-  assert.ok(waits[1] >= 10000 && waits[1] < 10300, `capped: ${waits[1]}`);
+  assert.equal(waits.length, 1, 'no 60 s wait');
+  assert.deepEqual(calls, ['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.6-flash']);
 });
 
 test('other errors are not retried', async () => {
   const calls = script(new Response(JSON.stringify({ error: { message: 'API key not valid' } }), { status: 400 }));
   await assert.rejects(AI.testGemini('bad', 'gemini-3.5-flash-lite'), /Gemini error 400: API key not valid/);
   assert.equal(calls.length, 1);
-  const c2 = script(new Response('{}', { status: 429 }));
-  await assert.rejects(AI.testGemini('K', 'm'), /429/);
-  assert.equal(c2.length, 1, '429 (quota) is not treated as high demand');
+});
+
+const rateLimited = (secs) => new Response(JSON.stringify({ error: { code: 429, message: 'Resource has been exhausted', status: 'RESOURCE_EXHAUSTED',
+  details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: `${secs}s` }] } }), { status: 429 });
+
+test('per-minute limit (429): a short retryDelay is waited for, then it succeeds', async () => {
+  waits.length = 0;
+  const calls = script(rateLimited(2), ok('OK'));
+  await AI.testGemini('K', 'gemini-3.5-flash-lite');
+  assert.equal(calls.length, 2);
+  assert.ok(waits[0] >= 2000 && waits[0] < 2300, `waited ${waits[0]}`);
+});
+
+test('per-minute limit with a long retryDelay: fallback model, then a clear "try again in N s"', async () => {
+  waits.length = 0;
+  const calls = script(rateLimited(34), rateLimited(34));
+  const err = await AI.testGemini('K', 'gemini-3.5-flash-lite').catch((e) => e);
+  assert.deepEqual(calls, ['gemini-3.5-flash-lite', 'gemini-3.6-flash'], 'no long waits; the fallback has its own quota');
+  assert.match(err.message, /per-minute limit is used up \(429.*Try again in about 34 s/);
+  assert.equal(err.busy, true);
+  assert.equal(err.retryAfterSec, 34);
+  assert.equal(waits.length, 0);
+});
+
+test('a request that never answers is abandoned (504) instead of hanging', async () => {
+  const { callGemini } = await import('../lib/gemini-core.js');
+  const never = (url, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
+  const t0 = Date.now();
+  const err = await callGemini({ apiKey: 'K', model: 'm', body: {}, fetchImpl: never, timeoutMs: 150, fallbackModel: null, sleep: async () => {} }).catch((e) => e);
+  assert.ok(Date.now() - t0 < 2000, 'gave up quickly');
+  assert.equal(err.status, 504);
+  assert.match(err.message, /no answer within/);
+});
+
+test('the whole call stops at its deadline', async () => {
+  const { callGemini } = await import('../lib/gemini-core.js');
+  let clock = 0;
+  const slowBusy = async () => { clock += 25000; return busy(); }; // each try "takes" 25 s
+  const err = await callGemini({ apiKey: 'K', model: 'm', body: {}, fetchImpl: slowBusy, deadlineMs: 60000, now: () => clock, sleep: async (ms) => { clock += ms; } }).catch((e) => e);
+  assert.ok(err.busy && clock <= 60000 + 25000, `stopped near the deadline (${clock / 1000} s)`);
 });
 
 test('no fallback when the chosen model already is the fallback', async () => {
   const calls = script(busy(), busy(), busy(), busy());
-  await assert.rejects(AI.testGemini('K', 'gemini-3.6-flash'), /tried gemini-3\.6-flash 4 times\. Please/);
+  await assert.rejects(AI.testGemini('K', 'gemini-3.6-flash'), /tried gemini-3\.6-flash 4 times\)\. Try again in about/);
   assert.equal(calls.length, 4);
 });
 

@@ -28,6 +28,9 @@ export function createServer(opts = {}) {
   const model = env.GEMINI_MODEL || DEFAULT_MODEL;
   const fallbackModel = env.GEMINI_FALLBACK_MODEL ?? FALLBACK_MODEL;
   const base = env.GEMINI_API_BASE || GEMINI_BASE;
+  // per-request timeout and overall deadline for Gemini (defaults 40 s / 60 s; the extension waits up to 95 s)
+  const timeoutMs = Number(env.GEMINI_TIMEOUT_MS) || undefined;
+  const deadlineMs = Number(env.GEMINI_DEADLINE_MS) || undefined;
   const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
   const limiter = opts.limiter || null;
   const log = opts.log || ((o) => console.log(JSON.stringify(o)));
@@ -109,12 +112,17 @@ export function createServer(opts = {}) {
       }
 
       try {
-        const out = await callGemini({ apiKey, model, body: buildBody(task, payload), fetchImpl, base, fallbackModel, sleep: opts.sleep });
+        const out = await callGemini({ apiKey, model, body: buildBody(task, payload), fetchImpl, base, fallbackModel, sleep: opts.sleep, timeoutMs, deadlineMs });
         return done(200, { text: out.text, model: out.model, remaining: ticket?.remaining ?? null, limit: ticket?.limit ?? null });
       } catch (e) {
         ticket?.refund(); // don't count failed calls against anyone
-        const busy = e.status === 503;
-        return done(busy ? 503 : 502, { error: busy ? 'busy' : 'upstream', message: busy ? e.message : 'The AI service failed. Offline matching still works.' });
+        if (e.busy || e.status === 503 || e.status === 429) {
+          const secs = e.retryAfterSec || 30;
+          res.setHeader('Retry-After', String(secs));
+          return done(503, { error: 'busy', retryAfter: secs, message: `The AI is busy right now (Gemini's limit). Try again in about ${secs} s; offline matching still works.` });
+        }
+        if (e.timeout || e.status === 504) return done(504, { error: 'timeout', retryAfter: 30, message: "The AI didn't answer in time. Try again in a moment; offline matching still works." });
+        return done(502, { error: 'upstream', message: 'The AI service failed. Offline matching still works.' });
       }
     } catch {
       return done(500, { error: 'server_error', message: 'Something went wrong on the server.' });

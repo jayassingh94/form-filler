@@ -153,7 +153,9 @@ function renderResult(r) {
   if (r.kept) m('check', `${r.kept} already had a value (left as is)`);
   if (r.sensitive) m('shield', `${r.sensitive} sensitive field${r.sensitive === 1 ? '' : 's'} skipped (password, card, bank, OTP…)`);
   if (r.fileInputs) m('paperclip', `${r.fileInputs} upload field${r.fileInputs === 1 ? '' : 's'}: use <b>Pick from locker</b> on the page`);
-  if (r.aiError) m('alert', r.aiLimit ? `${esc(r.aiError)} Used offline matching this time.` : `AI matching failed (${esc(r.aiError)}). Used offline matching instead.`, 'warn');
+  if (r.aiError) m('alert', r.aiLimit ? `${esc(r.aiError)} Used offline matching this time.`
+    : r.aiBusy ? `AI is busy right now, try again in about ${r.aiBusy} s. Used offline matching this time.`
+    : `AI matching failed (${esc(r.aiError)}). Used offline matching instead.`, 'warn');
   else if (r.remaining != null) m('sparkle', `Free AI: ${r.remaining} of ${r.limit ?? 10} uses left today`);
   else if (r.mode === 'offline') m('sparkle', 'Matched with offline keywords');
   if (r.fallbackModel) m('info', `Your Gemini model was busy, so ${esc(r.fallbackModel)} answered instead.`);
